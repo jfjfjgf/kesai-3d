@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>KESAi 金刚 DIAMONDS · 三维产品展示</title>
+<style>
+:root{
+  --paper:#faf7f1e6;--paper-solid:#faf7f1;--ink:#2a231b;--muted:#6c6052;
+  --line:#49372329;--vermilion:#a33a22;--gold:#b0802f;
+  --shadow:0 8px 28px #1e160e2e,0 1px 3px #1e160e1f;
+  --serif:"Songti SC","STSong","Noto Serif CJK SC","Source Han Serif SC","SimSun",serif;
+  --sans:system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:#e9ebee;color:var(--ink);
+  font-family:var(--sans);-webkit-text-size-adjust:100%;-webkit-user-select:none;user-select:none}
+#gl{position:fixed;inset:0;touch-action:none;-webkit-tap-highlight-color:transparent;cursor:grab;outline:none;
+  width:100%;height:100%;display:block}
+#gl.dragging{cursor:grabbing}
+#gl.hovering{cursor:pointer}
+.card{background:var(--paper);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border:1px solid var(--line);box-shadow:var(--shadow);border-radius:14px}
+
+/* ---------- 左上信息卡 ---------- */
+.intro{left:max(16px,env(safe-area-inset-left));top:max(16px,env(safe-area-inset-top));
+  max-width:330px;padding:14px 16px 13px;position:fixed}
+.intro h1{font-family:var(--serif);letter-spacing:.1em;margin:0;font-size:24px;font-weight:700;line-height:1.15}
+.intro .sub{color:var(--vermilion);margin:4px 0 9px;font-size:13px;font-weight:600;letter-spacing:.04em}
+.intro .help{margin:0;padding:0;font-size:13px;line-height:1.7;list-style:none}
+.intro .help b{color:var(--vermilion);margin-right:4px;font-weight:600}
+.intro .modes{display:flex;flex-direction:column;gap:8px;margin:10px 0 2px}
+.mode-btn{align-items:center;background:var(--ink);border:0;border-radius:10px;color:#fff;cursor:pointer;
+  display:flex;font-family:inherit;font-size:13.5px;font-weight:600;gap:8px;padding:9px 13px;width:100%}
+.mode-btn.alt{background:0 0;border:1px solid var(--line);color:var(--ink)}
+.mode-btn:hover{filter:brightness(1.12)}
+.mode-btn .dur{color:#ffffffb3;font-weight:400;margin-left:auto;font-size:12px}
+.mode-btn.alt .dur{color:var(--muted)}
+.mode-btn .ico{font-size:14px}
+.intro .note{border-top:1px solid var(--line);color:var(--muted);margin:9px 0 0;padding-top:8px;
+  font-size:12px;line-height:1.6}
+.intro-head{justify-content:space-between;align-items:center;gap:10px;display:flex}
+.intro-toggle{pointer-events:auto;width:32px;min-height:32px;color:var(--muted);background:0 0;
+  border-color:#0000;border-radius:8px;flex:none;place-items:center;margin:-4px -6px -4px 0;padding:0;display:grid}
+.intro-toggle:hover{color:var(--ink);background:#49372314}
+.intro.min .intro-body{display:none}
+.intro.min{padding-bottom:14px}
+
+/* ---------- 右上：隐藏界面 + 罗盘 ---------- */
+#topRight{right:max(16px,env(safe-area-inset-right));top:max(16px,env(safe-area-inset-top));
+  align-items:center;display:flex;gap:10px;position:fixed}
+.tool-btn{pointer-events:auto;color:var(--muted);background:var(--paper);border:1px solid var(--line);
+  box-shadow:var(--shadow);border-radius:10px;cursor:pointer;font-family:inherit;font-size:12.5px;padding:7px 11px}
+.tool-btn:hover{color:var(--ink)}
+.compass{pointer-events:none;border-radius:50%;place-items:center;width:58px;height:58px;display:grid}
+.compass svg{width:46px;height:46px;display:block}
+
+/* ---------- 底部工具栏 + 状态行 ---------- */
+#hud{align-items:center;bottom:max(16px,env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;gap:8px;
+  left:50%;max-width:calc(100vw - 24px);padding:9px 12px;position:fixed;transform:translateX(-50%);
+  justify-content:center}
+.hud-btn{background:var(--paper-solid);border:1px solid var(--line);border-radius:9px;color:var(--ink);
+  cursor:pointer;font-family:inherit;font-size:13px;padding:7px 12px;white-space:nowrap}
+.hud-btn:hover{border-color:#49372352}
+.hud-btn.on{background:var(--vermilion);border-color:var(--vermilion);color:#fff}
+.hud-btn:active{transform:translateY(1px)}
+.hud-btn.primary{background:var(--vermilion);border-color:var(--vermilion);color:#fff}
+#statusLine{bottom:max(64px,calc(env(safe-area-inset-bottom) + 48px));color:#3d362dcc;font-size:12px;
+  left:50%;letter-spacing:.03em;position:fixed;transform:translateX(-50%);text-align:center;
+  background:#faf7f180;padding:3px 10px;border-radius:8px;pointer-events:none;white-space:nowrap}
+
+/* ---------- 字幕 / 章节卡 ---------- */
+#caption{align-items:center;bottom:max(78px,calc(env(safe-area-inset-bottom) + 62px));display:none;
+  left:50%;max-width:min(640px,92vw);padding:10px 18px;position:fixed;transform:translateX(-50%);text-align:center}
+#caption.on{display:block}
+#caption .chap{color:var(--vermilion);font-size:12px;font-weight:700;letter-spacing:.08em;margin-bottom:3px}
+#caption .txt{font-size:14.5px;line-height:1.6}
+
+/* ---------- 场景内标注 ---------- */
+.anno{color:var(--ink);background:#faf7f1e0;border:1px solid var(--line);border-radius:999px;
+  box-shadow:0 1px 4px #1e160e26;font-size:12px;left:0;padding:3px 10px;position:fixed;top:0;
+  transform:translate(-50%,-50%);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .18s}
+.anno::after{content:"";position:absolute;top:100%;left:50%;width:1px;height:14px;background:#49372359}
+.anno b{color:var(--vermilion);font-weight:600}
+
+/* ---------- 部件信息卡（点击选件） ---------- */
+#partCard{display:none;left:max(16px,env(safe-area-inset-left));bottom:max(16px,env(safe-area-inset-bottom));
+  max-width:320px;min-width:210px;padding:12px 16px;position:fixed}
+#partCard.on{display:block}
+#partCard .tag{color:var(--muted);font-size:11px;letter-spacing:.1em}
+#partCard .name{font-size:16px;font-weight:700;margin:2px 26px 4px 0;line-height:1.3}
+#partCard .meta{color:var(--muted);font-size:12px;line-height:1.6}
+#partCard .close{position:absolute;right:8px;top:8px;border:0;background:0 0;color:var(--muted);
+  cursor:pointer;font-size:14px;padding:4px 8px}
+
+/* ---------- 加载 / 错误 ---------- */
+#loading{align-items:center;background:#e9ebee;display:grid;inset:0;place-items:center;position:fixed;
+  z-index:30;transition:opacity .5s;color:var(--muted);font-size:14px;letter-spacing:.1em}
+#loading.gone{opacity:0;pointer-events:none}
+#loading .bar{background:#4937231f;border-radius:2px;height:3px;margin:14px auto 0;overflow:hidden;width:180px}
+#loading .bar i{background:var(--vermilion);display:block;height:100%;transition:width .3s;width:0}
+#err{display:none;inset:0;place-items:center;position:fixed;z-index:40;background:#e9ebee;padding:24px}
+#err.on{display:grid}
+#err .card{font-size:14px;line-height:1.7;max-width:430px;padding:20px 24px}
+
+/* ---------- 隐藏界面模式 ---------- */
+body.hide-ui .intro,body.hide-ui #hud,body.hide-ui #topRight,body.hide-ui #statusLine,
+body.hide-ui #caption,body.hide-ui .anno,body.hide-ui #partCard{display:none!important}
+
+/* toast */
+#toast{background:var(--ink);color:#fff;border-radius:9px;font-size:12.5px;padding:7px 14px;position:fixed;
+  left:50%;top:18px;transform:translateX(-50%);opacity:0;transition:opacity .3s;pointer-events:none;z-index:50}
+#toast.on{opacity:.92}
+
+@media (max-width:640px){
+  .intro{max-width:236px;padding:11px 13px}
+  .intro h1{font-size:19px}
+  #statusLine{display:none}
+}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="loading"><div><div>正在加载三维模型…</div><div class="bar"><i id="bar"></i></div></div></div>
+<div id="err"><div class="card" id="errMsg"></div></div>
+<div id="toast"></div>
+
+<!-- 左上信息卡 -->
+<div class="intro card" id="intro">
+  <div class="intro-head">
+    <h1>KESAi 金刚</h1>
+    <button class="intro-toggle" id="introToggle" title="收起 / 展开">▲</button>
+  </div>
+  <div class="intro-body">
+    <div class="sub">HY-DIAMONDS-H · DIAMONDS</div>
+    <ul class="help">
+      <li><b>拖动</b>鼠标或单指，旋转视角</li>
+      <li><b>滚轮 / 双指</b>缩放远近</li>
+      <li><b>点击部件</b>查看名称</li>
+    </ul>
+    <div class="modes">
+      <button class="mode-btn" id="btnDemo"><span class="ico">▶</span>讲解演示<span class="dur" id="demoDur">约 100 秒</span></button>
+      <button class="mode-btn alt" id="btnTour"><span class="ico">⤴</span>部件巡览<span class="dur">约 75 秒</span></button>
+    </div>
+    <p class="note">相机始终环绕产品中心，保持在地面上方，最近距部件 0.06 m。「部件巡览」以第一视角逐件走近讲解，可随时拖动、点击部件。「讲解演示」使用固定录音，章节、镜头与字幕随录音推进；若未放置 narration.mp3 则按内置节奏演示。「拆解产品」动画拆解整机；「标注」开启部件浮标；「高清截图」导出当前画面 PNG。快捷键：空格=环绕，E=拆解，A=标注，H=隐藏界面，R=复位。</p>
+  </div>
+</div>
+
+<!-- 右上 -->
+<div id="topRight">
+  <button class="tool-btn" id="btnHideUI">隐藏界面</button>
+  <div class="compass card" title="方位">
+    <svg viewBox="0 0 48 48" id="compassSvg">
+      <circle cx="24" cy="24" r="21" fill="none" stroke="#49372340" stroke-width="1.5"/>
+      <g id="compassRose">
+        <path d="M24 7 L28 26 L24 22 L20 26 Z" fill="#a33a22"/>
+        <path d="M24 41 L28 22 L24 26 L20 22 Z" fill="#6c6052"/>
+      </g>
+      <text x="24" y="6.5" font-size="8" text-anchor="middle" fill="#2a231b" font-family="inherit">N</text>
+    </svg>
+  </div>
+</div>
+
+<!-- 字幕 -->
+<div id="caption" class="card">
+  <div class="chap" id="capChap"></div>
+  <div class="txt" id="capTxt"></div>
+</div>
+
+<!-- 底部工具栏 -->
+<div id="hud" class="card">
+  <button class="hud-btn primary" id="btnHome">回到初始视角</button>
+  <button class="hud-btn" id="btnExplode">拆解产品</button>
+  <button class="hud-btn" id="btnDetail">部件细节</button>
+  <button class="hud-btn" id="btnAnno">标注</button>
+  <button class="hud-btn" id="btnOrbit">环绕</button>
+  <button class="hud-btn" id="btnShot">高清截图</button>
+</div>
+<div id="statusLine"></div>
+<div id="dbg" style="position:fixed;left:50%;bottom:8px;transform:translateX(-50%);font:11px monospace;color:#333;background:#fffa;padding:2px 8px;border-radius:6px;display:none;z-index:60;white-space:pre"></div>
+
+<!-- 部件信息卡 -->
+<div id="partCard" class="card">
+  <button class="close" id="pcClose" title="关闭">✕</button>
+  <div class="tag">COMPONENT</div>
+  <div class="name" id="pcName">—</div>
+  <div class="meta" id="pcMeta"></div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "./lib/three.module.js",
+    "three/addons/": "./lib/addons/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+/* ===================== 0. 基础 ===================== */
+const $ = (id) => document.getElementById(id);
+const canvas = $('gl');
+const clamp = (x,a,b)=>Math.min(b,Math.max(a,x));
+const DEG = Math.PI/180;
+
+function fail(html){ $('err').classList.add('on'); $('errMsg').innerHTML=html; $('loading').classList.add('gone'); }
+if (location.protocol==='file:') {
+  fail('<b>请通过本地服务器打开本页。</b><br>双击「打开展示页.bat」，或在目录运行 <code>python -m http.server 8124</code> 后访问 <code>http://127.0.0.1:8124/</code>');
+  throw new Error('file protocol');
+}
+
+addEventListener('error', (e) => {
+  const d = document.getElementById('dbg');
+  if (d){ d.style.display='block'; d.textContent = 'ERR: ' + e.message + ' @' + String(e.filename||'').split('/').pop() + ':' + e.lineno; }
+});
+window.addEventListener('unhandledrejection', (e) => {
+  const d = document.getElementById('dbg');
+  if (d){ d.style.display='block'; d.textContent = 'REJ: ' + (e.reason && (e.reason.message||e.reason)); }
+});
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.98;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe9ebee);
+scene.fog = new THREE.Fog(0xe9ebee, 1.2, 5);
+
+const camera = new THREE.PerspectiveCamera(38, 1, 0.005, 30);
+const HOME = { pos:new THREE.Vector3(0.34,0.30,0.60), tgt:new THREE.Vector3(0,0.045,0) };   // 平放姿态,接插件面正对人
+camera.position.copy(HOME.pos);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.75;
+
+const key = new THREE.DirectionalLight(0xffffff, 1.7);
+key.position.set(0.8,1.3,0.6);
+key.castShadow = true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.radius = 6; key.shadow.bias = -0.0004;
+Object.assign(key.shadow.camera,{left:-0.35,right:0.35,top:0.35,bottom:-0.35,near:0.05,far:3});
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xdfe8ff, 0.5);
+fill.position.set(-0.9,0.5,-0.7); scene.add(fill);
+
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(1.2,64).rotateX(-Math.PI/2),
+  new THREE.ShadowMaterial({opacity:0.28}));
+ground.receiveShadow = true; scene.add(ground);
+const disc = new THREE.Mesh(
+  new THREE.CircleGeometry(0.30,72).rotateX(-Math.PI/2),
+  new THREE.MeshStandardMaterial({color:0xd6dade,roughness:0.92,metalness:0}));
+disc.receiveShadow = true; scene.add(disc);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 0.06; controls.maxDistance = 2;
+controls.autoRotate = false; controls.autoRotateSpeed = 0.9;
+controls.target.copy(HOME.tgt);
+
+/* ===================== 1. 部件展示名 ===================== */
+/* CAD 文件名 -> 客户展示名（正则匹配，GLTFLoader 会清洗节点名：点号删除、空格变下划线） */
+const PART_LABELS = [
+  [/B001V04_01/,        '主外壳（钣金围框）'],
+  [/B001V04_02/,        '侧面板'],
+  [/J002V04/,           '顶盖板'],
+  [/J001V04/,           '底板（带进风孔）'],
+  [/B003V03/,           '硬盘仓隔板'],
+  [/J021V01/,           '内支撑架'],
+  [/J022V01/,           '压线盖'],
+  [/Hard_?Drive/i,        '3.5 寸硬盘'],
+  [/^PCB-/,             '主板'],
+  [/IO_+PCB/,           'IO 转接板'],
+  [/SFP\+/,             'SFP+ 光纤接口板（8 口）'],
+  [/^DP_+/,             'DP 显示接口 ×2'],
+  [/RJ45\+USB/,         'RJ45+USB 组合接口'],
+  [/RJ45_+2X1/i,        'RJ45 网口 ×2'],
+  [/NVME/i,             'M.2 NVMe 固态盘位'],
+  [/PCIEx16/i,          'PCIe x16 扩展插槽'],
+  [/ATX/,               'ATX 供电插座'],
+  [/sata7/i,            'SATA 数据接口'],
+  [/^AC-01/,            'AC 电源模块'],
+  [/^AC_+PCB/,          'AC 电源板'],
+  [/2_?8mm/,            '电源接线端子'],
+  [/^4015/,             '4015 散热风扇'],
+  [/iamands/i,          '「金刚」标牌'],
+  [/_+M\d+x\d|^M\d+x\d/,'紧固螺钉'],
+  [/0_?9x6/,            '弹簧垫圈'],
+];
+const displayName = n => {
+  for (const [re,s] of PART_LABELS) if (re.test(n)) return s;
+  return n;
+};
+
+/* ===================== 2. 模型加载与部件注册 ===================== */
+const root = new THREE.Group(); scene.add(root);
+const parts = [];      // {mesh,name,dir,home,center,radius}
+const matCache = [];
+let modelCenter = new THREE.Vector3(0,0.045,0);
+let selected = null;
+
+/* 配色对照金刚实物图（图/金刚图.png）：银灰喷涂机身，黑接口，
+   荧光黄 RGB(240,255,0) 仅用于顶盖条纹与菱形标（见贴片）。 */
+const PART_COLORS = [
+  [/NVME/i,          0x45484c],
+  [/SFP\+/,          0xc0c6cd],   // SFP+ 笼座:镀锌亮银
+  [/RJ45/,           0x3a3d42],   // 网口:黑胶芯
+  [/^DP_+/,          0x3a3d42],
+  [/PCIEx16/i,       0x45484c],
+  [/ATX/,            0x45484c],
+  [/sata7/i,         0x45484c],
+  [/^AC/,            0x2e3134],   // AC 电源:黑
+  [/2_?8mm/,         0x3f4247],
+  [/Hard_?Drive/i,     0xb9bec4],
+  [/^PCB-/,          0x2f6e24],
+  [/IO_+PCB/,        0x2f6e24],
+  [/^4015/,          0x303338],   // 风扇:黑
+  [/iamands/i,       0xccd1d7],   // 侧面标牌件:实物侧无标,涂机身色隐没
+  [/_+M\d+x\d|^M\d+x\d/, 0x9aa0a6],
+  [/0_?9x6/,         0x9aa0a6],
+  [/^GVM-VC1000A/,   0xccd1d7],   // 机身钣金:银灰喷涂(提亮对齐实物受光面)
+];
+function colorFor(name){
+  for (const [re, c] of PART_COLORS) if (re.test(name)) return c;
+  return 0xccd1d7;
+}
+
+/* 品牌贴片：金刚字标（贴机箱标牌位）+ KESAi 铭牌，位置按 CAD 坐标测量 */
+function loadTex(file){
+  const tex = new THREE.TextureLoader().load(file);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+function addFacePlates(model){
+  window.__brandPlates = window.__brandPlates || [];
+  /* 通用贴片:pos=CAD 坐标, nrm=外法线, up=贴图上方向 */
+  const mk = (mat, w, h, pos, nrm, up) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    m.userData.brandPlate = true;   // 品牌贴片：不参与配色/爆炸/选件
+    m.position.set(...pos);
+    const n = new THREE.Vector3(...nrm).normalize();
+    const u = new THREE.Vector3(...up).normalize();
+    const r = new THREE.Vector3().crossVectors(u, n).normalize();
+    m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r, u, n));
+    window.__brandPlates.push(m);
+    model.add(m);
+  };
+  const dec = (f) => new THREE.MeshStandardMaterial({ map: loadTex(f), roughness: 0.45, metalness: 0.12, transparent: true });
+  /* 顶面(平放后朝上 = CAD x- 大板):三条荧光黄纹沿 257 深,菱形金刚标靠正面端 */
+  mk(dec('top_decals.png'), 0.218, 0.257, [-0.0313, -0.119, 0.102], [-1,0,0], [0,1,0]);
+  /* 侧面(CAD z+ 朝右,257 深 x 90 高)靠接插件的空白区:红色 KESAI + 型号灰字 */
+  mk(dec('front_kesai.png'), 0.060, 0.022, [0.014, -0.195, 0.2065], [0,0,1], [-1,0,0]);
+}
+
+new GLTFLoader().load('diamonds.glb?v=4', (gltf)=>{
+  const model = gltf.scene;
+  model.updateMatrixWorld(true);
+  addFacePlates(model);
+  root.add(model);
+
+  /* 平放姿态(对照实物图):CAD z(218) -> 左右宽, CAD x(90) -> 高度, CAD y-(接插件面) -> 朝观众 */
+  root.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+    new THREE.Vector3(0,-1,0),   // CAD x -> 世界 -y(上下)
+    new THREE.Vector3(0,0,-1),   // CAD y -> 世界 -z(前后)
+    new THREE.Vector3(1,0,0)));  // CAD z -> 世界 x(左右)
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root);
+  const c = box.getCenter(new THREE.Vector3());
+  root.position.x -= c.x; root.position.z -= c.z; root.position.y -= box.min.y;
+  root.updateMatrixWorld(true);
+  modelCenter = new THREE.Vector3(0, c.y - box.min.y, 0);   // 落地后的整机中心
+
+  let idx = 0;
+  model.traverse((obj)=>{
+    if (!obj.isMesh || obj.userData.brandPlate) return;
+    idx++;
+    obj.castShadow = obj.receiveShadow = true;
+    const mat = obj.material = obj.material.clone();   // GLB 内共享同一默认材质,克隆为独立材质再配色
+    mat.side = THREE.DoubleSide;
+    if (mat.color) {
+      mat.color.setHex(colorFor(obj.name));
+      mat.metalness = 0.12;
+      mat.roughness = 0.42;
+    }
+    mat.envMapIntensity = 0.9;
+    matCache.push(mat);
+    const bb = new THREE.Box3().setFromObject(obj);
+    const pc = bb.getCenter(new THREE.Vector3());
+    const radius = bb.getSize(new THREE.Vector3()).length()/2;
+    const dir = pc.clone().sub(modelCenter); dir.y *= 0.55;
+    if (dir.lengthSq() < 1e-8) dir.set(0,1,0);
+    dir.normalize();
+    dir.applyQuaternion(root.quaternion); // 世界方向 -> root 局部（爆炸位移用局部坐标）
+    parts.push({ mesh:obj, name:obj.name||`Part ${idx}`, dir, home:obj.position.clone(), center:pc, radius });
+  });
+  $('loading').classList.add('gone');
+  buildAnnotations();
+  updateStatus();
+  autoStart();
+  window.__parts = parts; window.__colorFor = colorFor; window.__scene = scene;   // CDP 调试
+}, (ev)=>{ if (ev.total) $('bar').style.width = Math.round(ev.loaded/ev.total*100)+'%'; },
+(err)=>{ console.error(err); fail('模型加载失败：'+(err&&err.message||'未知错误')+'<br>请确认 diamonds.glb 与本页面在同一目录。'); });
+
+const findParts = (re) => parts.filter(p=>re.test(p.name));
+
+/* ===================== 3. 爆炸（拆解） ===================== */
+let explodeT = 0;              // 0..1 实际值
+let explodeTarget = 0;         // 目标值（每帧向其缓动）
+function applyExplode(t){
+  const spread = 0.12;
+  for (const p of parts) p.mesh.position.copy(p.home).addScaledVector(p.dir, t*spread);
+}
+
+/* ===================== 4. 相机 tween ===================== */
+let camTween = null;
+function tweenCamera(pos, tgt, dur=1400, onDone){
+  camTween = {
+    t0: performance.now(), dur,
+    p0: camera.position.clone(), p1: pos.clone(),
+    g0: controls.target.clone(), g1: tgt.clone(),
+    onDone, user:null,
+  };
+  return camTween;
+}
+function stepTween(now){
+  if (!camTween) return;
+  const k = clamp((now-camTween.t0)/camTween.dur, 0, 1);
+  const e = k<0.5 ? 4*k*k*k : 1-Math.pow(-2*k+2,3)/2;   // cubic in-out
+  camera.position.lerpVectors(camTween.p0, camTween.p1, e);
+  controls.target.lerpVectors(camTween.g0, camTween.g1, e);
+  if (k>=1){ const cb=camTween.onDone; camTween=null; cb&&cb(); }
+}
+function stopTween(){ camTween = null; }
+
+/* ===================== 5. 选件 ===================== */
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let downAt = null;
+canvas.addEventListener('pointerdown',(e)=>{ downAt=[e.clientX,e.clientY]; canvas.classList.add('dragging'); stopTour(true); clearTimeout(resumeTimer); controls.autoRotate=false; });
+window.addEventListener('pointerup',()=>{ canvas.classList.remove('dragging'); resumeTimer=setTimeout(()=>{ controls.autoRotate=orbitOn; },3000); });
+canvas.addEventListener('pointermove',(e)=>{
+  if (!parts.length) return;
+  ndc.set(e.clientX/innerWidth*2-1, -(e.clientY/innerHeight)*2+1);
+  ray.setFromCamera(ndc,camera);
+  canvas.classList.toggle('hovering', !!ray.intersectObjects(parts.map(p=>p.mesh),false)[0] && !e.buttons);
+});
+canvas.addEventListener('click',(e)=>{
+  if (!downAt) return;
+  const moved = Math.hypot(e.clientX-downAt[0], e.clientY-downAt[1]);
+  downAt = null;
+  if (moved>5) return;
+  ndc.set(e.clientX/innerWidth*2-1, -(e.clientY/innerHeight)*2+1);
+  ray.setFromCamera(ndc,camera);
+  const hit = ray.intersectObjects(parts.map(p=>p.mesh),false)[0];
+  select(hit ? parts.find(p=>p.mesh===hit.object) : null);
+});
+
+function select(p){
+  if (selected) selected.mesh.material.emissive.setHex(0);
+  selected = p;
+  const card = $('partCard');
+  if (!p){ card.classList.remove('on'); return; }
+  p.mesh.material.emissive.setHex(0x0d4d8c);
+  p.mesh.material.emissiveIntensity = 0.6;
+  $('pcName').textContent = displayName(p.name);
+  $('pcMeta').textContent = `部件 ${parts.indexOf(p)+1} / ${parts.length}`;
+  card.classList.add('on');
+}
+$('pcClose').addEventListener('click',()=>select(null));
+
+/* 高亮一组部件（讲解/巡览用） */
+function setHighlight(list, on){
+  for (const p of list){
+    if (p===selected && on) continue;
+    p.mesh.material.emissive.setHex(on?0x0d4d8c:0);
+    p.mesh.material.emissiveIntensity = 0.45;
+  }
+}
+function clearAllHL(){ for (const m of matCache){ m.emissive.setHex(0); } if (selected){ selected.mesh.material.emissive.setHex(0x0d4d8c); selected.mesh.material.emissiveIntensity=0.6; } }
+
+/* ===================== 6. 讲解演示（固定录音驱动，缺省用内置节奏） ===================== */
+/* 章节表：t 为该节开始的秒数，与 audio/narration.mp3 对齐（edge-tts 逐节合成 + 0.9s 停顿拼接）。 */
+const CHAPTERS = [
+  { t:0,  title:'第 1 节 · 整机概览', text:'「金刚」主机 HY-DIAMONDS-H，集 CFLink 光纤通讯、gLink-II 等环网通讯和视觉处理等多项领先技术于一体，是一台高性能「金刚」视控主机。整机宽约 90 毫米、深约 257 毫米、高约 218 毫米，紧凑机身内，是一套完整的主机系统。',
+    cam:{ pos:[0.34,0.30,0.60], tgt:[0,0.045,0] }, hl:null },
+  { t:22.16, title:'第 2 节 · CFLink 光纤通讯', text:'机身中部的接口板上，八口 SFP+ 光纤接口两列排布，通过 CFLink 光纤通讯与外部设备全光互联。光纤传输抗干扰强、带宽高，适合长距离的信号接力。',
+    cam:{ pos:[0.24,0.18,0.42], tgt:[0.03,0.03,0.11] }, hl:[/SFP\+/], expl:0.85 },
+  { t:38.21, title:'第 3 节 · gLink-II 环网通讯', text:'网口方面，机身设有两路 RJ45 网口，运行 gLink-II 等环网通讯协议，组成环形冗余网络；前部还有 RJ45 与 USB 组合接口、双路 DP 显示接口，联机组网与画面输出一举两得。',
+    cam:{ pos:[0.12,0.16,0.44], tgt:[0,0.04,0.15] }, hl:[/RJ45/,/^DP_+/], expl:0.45 },
+  { t:56.10, title:'第 4 节 · 视觉处理与算力', text:'主板竖置于机箱中部，提供 PCIe 16 倍速扩展槽，随时加装视觉处理卡；M.2 NVMe 固态盘位加载系统与视觉程序，响应迅速。',
+    cam:{ pos:[0.30,0.26,0.46], tgt:[0,0.05,0.04] }, hl:[/^PCB-/,/PCIEx16/i,/NVME/i], expl:0.85 },
+  { t:69.96, title:'第 5 节 · 存储与供电', text:'存储与供电同样齐整：一侧是独立硬盘仓，3.5 寸硬盘横卧其中，两路 SATA 接口直连主板；供电由 AC 电源模块输入，经 ATX 插座分配到整机。',
+    cam:{ pos:[0.44,0.30,0.34], tgt:[0.08,0.04,0.10] }, hl:[/Hard_?Drive/i,/sata7/i,/^AC/,/ATX/], expl:0.65 },
+  { t:85.02,title:'第 6 节 · 散热与总结', text:'正面一排四只 4015 风扇组成散热风墙，冷空气从前部贯入，全钣金机身兼作散热骨架。一台「金刚」，收拢光纤、环网、视觉三大能力——这正是它高性能的底气。',
+    cam:{ pos:[0.28,0.22,0.55], tgt:[0.10,0.03,0.20] }, hl:[/^4015/] },
+];
+const DEMO_FALLBACK_TOTAL = 102;   // 无录音时的总时长（秒）
+
+const NARRATION = { audio:null, url:'audio/narration.mp3', loading:null, has:false };
+function probeAudio(){
+  if (NARRATION.loading) return NARRATION.loading;
+  NARRATION.loading = fetch(NARRATION.url, {method:'HEAD'})
+    .then(r=>{ NARRATION.has = r.ok && (r.headers.get('content-type')||'').startsWith('audio'); })
+    .catch(()=>{ NARRATION.has=false; });
+  return NARRATION.loading;
+}
+probeAudio().then(()=>{ if (NARRATION.has){ $('demoDur').textContent='约 100 秒'; } });
+
+let demo = null;   // {start, audio, chapIdx}
+function demoTime(){
+  if (demo && demo.audio) return demo.audio.currentTime;
+  return demo ? (performance.now()-demo.start)/1000 : 0;
+}
+function startDemo(){
+  stopTour(true); stopDemo(true);
+  explodeTarget = 0;
+  const begin = ()=>{
+    demo = { start:performance.now(), audio:null, chapIdx:-1 };
+    $('btnDemo').classList.add('on'); $('btnDemo').firstChild.textContent='⏸';
+    // 录音里若含人声，从音频元素取
+    if (NARRATION.has){
+      const a = new Audio(); a.src = NARRATION.url; a.preload='auto';
+      demo.audio = a;
+      a.addEventListener('ended', stopDemo);
+      a.play().catch(()=>{ demo.audio=null; });
+    }
+    stepDemo();
+  };
+  // 拆解态先复位再开始
+  if (explodeT>0.01){ explodeTarget=0; }
+  tweenCamera(new THREE.Vector3(...CHAPTERS[0].cam.pos), new THREE.Vector3(...CHAPTERS[0].cam.tgt), 1200, begin);
+}
+function stepDemo(){
+  if (!demo) return;
+  const t = demoTime();
+  let idx = -1;
+  for (let i=0;i<CHAPTERS.length;i++) if (t>=CHAPTERS[i].t) idx=i;
+  if (idx!==demo.chapIdx){
+    demo.chapIdx = idx;
+    if (idx>=0){
+      const ch = CHAPTERS[idx];
+      if (!camTween || camTween.user!=='demo'){
+        const tw = tweenCamera(new THREE.Vector3(...ch.cam.pos), new THREE.Vector3(...ch.cam.tgt), 1600);
+        tw.user = 'demo';
+      }
+      showCaption(ch.title, ch.text);
+      clearAllHL();
+      explodeTarget = ch.expl || 0;                 // 内部件章节配合拆解展示
+      $('btnExplode').classList.toggle('on', !!ch.expl);
+      $('btnExplode').textContent = ch.expl ? '收回部件' : '拆解产品';
+      if (ch.hl) setHighlight(ch.hl.flatMap(re=>findParts(re)), true);
+    }
+  }
+  if (demo && !demo.audio && t>DEMO_FALLBACK_TOTAL) stopDemo();
+}
+function stopDemo(silent){
+  if (!demo) return;
+  if (demo.audio){ demo.audio.pause(); }
+  if (!silent){ explodeTarget = 0; $('btnExplode').classList.remove('on'); $('btnExplode').textContent='拆解产品'; }
+  demo = null;
+  $('btnDemo').classList.remove('on'); $('btnDemo').firstChild.textContent='▶';
+  hideCaption(); clearAllHL();
+  if (!silent) toast('讲解演示已结束');
+}
+$('btnDemo').addEventListener('click',()=>{ demo ? stopDemo(true) : startDemo(); });
+
+/* ===================== 7. 部件巡览 ===================== */
+const TOUR_SEQ = [
+  { re:/B001V04_01/,  text:'全钣金围框整机骨架，表面导电氧化，兼顾屏蔽与散热。' },
+  { re:/^4015/,       text:'正面一列四只 40 毫米薄扇，组成散热风墙，从前部贯入冷风。' },
+  { re:/SFP\+/,       text:'八口 SFP+ 光纤接口两列排布，CFLink 光纤通讯的枢纽。' },
+  { re:/RJ45\+USB/,   text:'网口与 USB 组合接口，联机调试两用。' },
+  { re:/RJ45_+2X1/i,  text:'两路 RJ45 网口，运行 gLink-II 等环网通讯协议。' },
+  { re:/^DP_+/,       text:'双路 DP 显示接口，视觉画面输出与监看。' },
+  { re:/^PCB-/,       text:'主板——整机计算核心，竖置布局缩短走线。' },
+  { re:/PCIEx16/i,    text:'PCIe x16 扩展插槽，随时加装视觉处理卡。' },
+  { re:/NVME/i,       text:'M.2 NVMe 固态盘位，加载系统与视觉程序。' },
+  { re:/Hard_?Drive/i,  text:'3.5 寸硬盘横卧独立硬盘仓，大容量视觉数据就地存储。' },
+  { re:/sata7/i,      text:'双路 SATA 接口，硬盘直连主板。' },
+  { re:/ATX/,         text:'ATX 供电插座，整机电力分配枢纽。' },
+  { re:/^AC-01/,      text:'AC 电源模块，市电输入与变换。' },
+  { re:/B003V03/,     text:'硬盘仓隔板——独立仓隔离减振，护住盘片数据。' },
+];
+let tour = null;   // {idx, phase:'move'|'stay', until}
+function startTour(){
+  stopDemo(true); select(null);
+  setExplode(true);                                 // 金刚为整机,巡览在拆解态下逐件走近
+  tour = { idx:-1, phase:'move', until:0 };
+  $('btnTour').classList.add('on');
+  tourNext();
+}
+function tourNext(){
+  if (!tour) return;
+  tour.idx++;
+  if (tour.idx>=TOUR_SEQ.length){ stopTour(); toast('部件巡览结束'); return; }
+  const item = TOUR_SEQ[tour.idx];
+  const list = findParts(item.re);
+  if (!list.length){ tourNext(); return; }
+  const p = list[0];
+  const c = p.center.clone();
+  const horiz = new THREE.Vector3(c.x-modelCenter.x,0,c.z-modelCenter.z);
+  if (horiz.lengthSq()<1e-6) horiz.set(0.5,0,0.5);
+  horiz.normalize();
+  const dist = Math.max(0.10, p.radius*2.4);
+  const pos = c.clone().addScaledVector(horiz,dist).add(new THREE.Vector3(0,0.10+p.radius*0.5,0));
+  const name = displayName(p.name);
+  const i1 = parts.indexOf(p)+1;
+  showCaption(`部件 ${i1}/${parts.length} · 巡览`, `${name} —— ${item.text}`);
+  clearAllHL(); setHighlight([p], true);
+  tweenCamera(pos, c, 1500, ()=>{ tour.phase='stay'; tour.until=performance.now()+3600; });
+}
+function stepTour(now){
+  if (!tour) return;
+  if (tour.phase==='stay' && now>=tour.until) tourNext();
+}
+function stopTour(silent){
+  if (!tour) return;
+  tour = null;
+  $('btnTour').classList.remove('on');
+  hideCaption(); clearAllHL();
+  if (!silent) toast('部件巡览已停止');
+}
+$('btnTour').addEventListener('click',()=>{ tour ? stopTour(true) : startTour(); });
+
+/* ===================== 8. 字幕 / 提示 ===================== */
+function showCaption(chap,txt){ $('capChap').textContent=chap; $('capTxt').textContent=txt; $('caption').classList.add('on'); }
+function hideCaption(){ $('caption').classList.remove('on'); }
+let toastTimer=0;
+function toast(s){ const t=$('toast'); t.textContent=s; t.classList.add('on'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('on'),2200); }
+
+/* ===================== 9. 标注 ===================== */
+const ANNOTATIONS = [
+  { re:/SFP\+/,        label:'SFP+ 光纤口 ×8', nrm:[0.1,0.3,1] },
+  { re:/RJ45_+2X1/i,   label:'RJ45 网口 ×2', nrm:[0.1,0,1] },
+  { re:/RJ45\+USB/,    label:'RJ45+USB 组合口', nrm:[0,0,1] },
+  { re:/^DP_+/,        label:'DP 显示接口 ×2', nrm:[-0.2,0.1,1] },
+  { re:/^4015/,        label:'4015 风扇 ×4', nrm:[0.3,0.2,1] },
+  { re:/PCIEx16/i,     label:'PCIe x16 插槽', nrm:[0,0.3,1] },
+  { re:/Hard_?Drive/i,   label:'3.5″ 硬盘仓', nrm:[1,0.3,0.2] },
+  { re:/ATX/,          label:'ATX 供电座', nrm:[0,0.5,1] },
+  { re:/^AC-01/,       label:'AC 电源模块', nrm:[0,0.2,-1] },
+];
+const annoEls = [];   // {el, part, nrm, world}
+let annoOn = false;
+function buildAnnotations(){
+  for (const a of ANNOTATIONS){
+    const list = findParts(a.re);
+    if (!list.length) continue;
+    const p = list[0];
+    const el = document.createElement('div');
+    el.className = 'anno';
+    el.innerHTML = a.label;
+    document.body.appendChild(el);
+    // 锚点：部件外表面一点（中心 + 外法向×半径）
+    const n = new THREE.Vector3(...a.nrm).normalize();
+    const world = p.center.clone().addScaledVector(n, p.radius*0.55);
+    annoEls.push({ el, part:p, world });
+  }
+}
+function stepAnnotations(){
+  const v = new THREE.Vector3();
+  for (const a of annoEls){
+    // 爆炸时标注跟随部件
+    v.copy(a.world).add(a.part.mesh.position).sub(a.part.home);
+    v.project(camera);
+    const on = annoOn && v.z<1 && v.x>-1.05 && v.x<1.05 && v.y>-1.05 && v.y<1.05;
+    if (on){
+      a.el.style.opacity = 1;
+      a.el.style.transform = `translate(-50%,-50%) translate(${(v.x*0.5+0.5)*innerWidth}px,${(-v.y*0.5+0.5)*innerHeight}px)`;
+    } else a.el.style.opacity = 0;
+  }
+}
+function setAnno(on){ annoOn=on; $('btnAnno').classList.toggle('on',on); if(!on) annoEls.forEach(a=>a.el.style.opacity=0); }
+$('btnAnno').addEventListener('click',()=>setAnno(!annoOn));
+
+/* ===================== 10. 拆解 / 细节 / 环绕 / 复位 / 截图 ===================== */
+let detailOn = false;
+function setExplode(on){
+  explodeTarget = on?1:0;
+  $('btnExplode').classList.toggle('on',on);
+  $('btnExplode').textContent = on?'收回部件':'拆解产品';
+  if (on){ select(null); stopTour(true); stopDemo(true); }
+}
+$('btnExplode').addEventListener('click',()=>setExplode(explodeTarget<0.5));
+
+const DETAIL_CAM = { pos:new THREE.Vector3(0.14,0.14,0.46), tgt:new THREE.Vector3(0.02,0.04,0.14) };
+$('btnDetail').addEventListener('click',(e)=>{
+  detailOn = !detailOn;
+  e.currentTarget.classList.toggle('on',detailOn);
+  if (detailOn){
+    stopTour(true); stopDemo(true);
+    tweenCamera(DETAIL_CAM.pos, DETAIL_CAM.tgt, 1400);
+    toast('部件细节：滚轮拉近查看接口区');
+  } else {
+    tweenCamera(HOME.pos, HOME.tgt, 1400);
+  }
+});
+
+let orbitOn = false;
+$('btnOrbit').addEventListener('click',(e)=>{
+  orbitOn = !orbitOn;
+  controls.autoRotate = orbitOn;
+  e.currentTarget.classList.toggle('on',orbitOn);
+});
+
+function goHome(){
+  stopTour(true); stopDemo(true);
+  setExplode(false);
+  if (detailOn){ detailOn=false; $('btnDetail').classList.remove('on'); }
+  select(null); setAnno(false);
+  tweenCamera(HOME.pos, HOME.tgt, 1200);
+}
+$('btnHome').addEventListener('click',goHome);
+
+$('btnShot').addEventListener('click',()=>{
+  renderer.render(scene,camera);
+  canvas.toBlob((blob)=>{
+    if (!blob) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'HY-DIAMONDS-H.png';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    toast('已导出当前画面 PNG');
+  },'image/png');
+});
+
+/* 隐藏界面 */
+let uiHidden = false;
+function setHideUI(on){
+  uiHidden = on;
+  document.body.classList.toggle('hide-ui',on);
+  $('btnHideUI').textContent = on?'显示界面':'隐藏界面';
+  $('btnHideUI').classList.toggle('on',on);
+}
+$('btnHideUI').addEventListener('click',()=>setHideUI(!uiHidden));
+
+/* 信息卡折叠 */
+$('introToggle').addEventListener('click',()=>{
+  const min = $('intro').classList.toggle('min');
+  $('introToggle').textContent = min?'▼':'▲';
+});
+
+/* 快捷键（空格环绕 / H 隐藏 / R 复位 / E 拆解 / A 标注 / Esc 退出） */
+addEventListener('keydown',(e)=>{
+  if (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  switch(e.code){
+    case 'Space': e.preventDefault(); $('btnOrbit').click(); break;
+    case 'KeyH': setHideUI(!uiHidden); break;
+    case 'KeyR': goHome(); break;
+    case 'KeyE': setExplode(explodeTarget<0.5); break;
+    case 'KeyA': setAnno(!annoOn); break;
+    case 'Escape': stopTour(true); stopDemo(true); select(null); break;
+  }
+});
+
+/* ===================== 11. 状态行 / 罗盘 ===================== */
+function updateStatus(){
+  const d = camera.position.distanceTo(controls.target);
+  const elev = Math.atan2(camera.position.y-controls.target.y, Math.hypot(camera.position.x-controls.target.x, camera.position.z-controls.target.z))/DEG;
+  $('statusLine').textContent = `环绕产品中心 · 俯仰 ${elev.toFixed(0)}° · 距离 ${d.toFixed(2)} m（可缩放 ${controls.minDistance.toFixed(2)}–${controls.maxDistance.toFixed(1)} m）`;
+  $('compassRose').setAttribute('transform',`rotate(${-controls.getAzimuthalAngle()/DEG} 24 24)`);
+}
+setInterval(updateStatus, 150);
+
+/* ===================== 12. 主循环 ===================== */
+/* 只读调试句柄（控制台/自动化测试用） */
+window.__kingDebug = { get state(){
+  return {
+    demoActive: !!demo,
+    chapIdx: demo ? demo.chapIdx : -1,
+    audioAttached: !!(demo && demo.audio),
+    audioTime: demo && demo.audio ? +demo.audio.currentTime.toFixed(2) : null,
+    audioPaused: demo && demo.audio ? demo.audio.paused : null,
+    narrationFile: NARRATION.has,
+    explodeT: +explodeT.toFixed(3),
+    parts: parts.length,
+    mats: parts.slice(0,30).map(p => p.name + '=' + p.mesh.material.color.getHexString()),
+  };
+}};
+
+/* 调试栏:?debug=1 时显示内部状态 */
+const DBG = new URLSearchParams(location.search).has('debug');
+if (DBG) $('dbg').style.display = 'block';
+let rafN = 0;
+setInterval(()=>{
+  if (!DBG) return;
+  $('dbg').textContent = JSON.stringify({
+    demo: !!demo, ci: demo ? demo.chapIdx : -1,
+    at: demo && demo.audio ? +demo.audio.currentTime.toFixed(1) : null,
+    paused: demo && demo.audio ? demo.audio.paused : null,
+    narr: NARRATION.has, explode: +explodeT.toFixed(2),
+    parts: parts.length, raf: rafN, tour: !!tour,
+  });
+}, 400);
+
+/* URL 自动化(headless 截图/测试用,正常访问不受影响):
+   autodemo=时钟驱动讲解  autotour=自动巡览  autoexplode=拆解  autoanno=标注 */
+function autoStart(){
+  const Q = new URLSearchParams(location.search);
+  if (Q.has('view')){                     // ?view=90 -> 相机绕到指定方位角(度)
+    const rad = (parseFloat(Q.get('view')) || 0) * Math.PI/180;
+    const t = controls.target, p = camera.position;
+    const r = Math.hypot(p.x-t.x, p.z-t.z);
+    p.set(t.x + Math.sin(rad)*r, p.y, t.z + Math.cos(rad)*r);
+  }
+  if (!Q.has('autodemo') && !Q.has('autotour') && !Q.has('autoexplode') && !Q.has('autoanno')) return;
+  if (Q.has('autoexplode')) setExplode(true);
+  if (Q.has('autoanno')) setAnno(true);
+  if (Q.has('autodemo')){
+    stopTour(true); stopDemo(true);
+    const skip = parseFloat(Q.get('autodemo')) || 0;   // ?autodemo=30 -> 直接处于第30秒
+    demo = { start:performance.now() - skip*1000, audio:null, chapIdx:-1 };   // 时钟驱动,不挂音频
+    if (skip > 0){
+      let at = -1;
+      for (let i=0;i<CHAPTERS.length;i++) if (skip >= CHAPTERS[i].t) at = i;
+      if (at >= 0){ camera.position.set(...CHAPTERS[at].cam.pos); controls.target.set(...CHAPTERS[at].cam.tgt); }
+    }
+    $('btnDemo').classList.add('on'); $('btnDemo').firstChild.textContent='⏸';
+    stepDemo();
+  }
+  if (Q.has('autotour')) startTour();
+}
+
+function resize(){
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize',resize); resize();
+
+renderer.setAnimationLoop(()=>{
+  const now = performance.now();
+  rafN++;
+  stepTween(now);
+  if (Math.abs(explodeT-explodeTarget)>0.0005){
+    explodeT += (explodeTarget-explodeT)*0.09;     // 缓动逼近
+    if (Math.abs(explodeT-explodeTarget)<0.0005) explodeT=explodeTarget;
+    applyExplode(explodeT);
+  }
+  stepDemo();
+  stepTour(now);
+  stepAnnotations();
+  controls.update();
+  renderer.render(scene,camera);
+});
+</script>
+</body>
+</html>
