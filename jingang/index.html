@@ -114,9 +114,24 @@ body.hide-ui #caption,body.hide-ui .anno,body.hide-ui #partCard{display:none!imp
 #toast.on{opacity:.92}
 
 @media (max-width:640px){
-  .intro{max-width:236px;padding:11px 13px}
-  .intro h1{font-size:19px}
+  .intro{max-width:210px;padding:10px 12px}
+  .intro h1{font-size:18px}
+  .intro .help{font-size:12px;line-height:1.55}
+  .mode-btn{font-size:12.5px;padding:8px 11px}
+  .intro .note{font-size:11px}
   #statusLine{display:none}
+  #hud{gap:6px;padding:7px 8px}
+  .hud-btn{font-size:12px;padding:7px 9px;border-radius:8px}
+  #caption{bottom:max(112px,calc(env(safe-area-inset-bottom) + 96px));padding:8px 14px}
+  #caption .txt{font-size:13.5px}
+  #partCard{max-width:calc(100vw - 40px);min-width:180px}
+  .compass{width:46px;height:46px}
+  .compass svg{width:36px;height:36px}
+  .tool-btn{font-size:11.5px;padding:6px 9px}
+}
+@media (min-width:641px) and (max-width:1024px){
+  .intro{max-width:280px}
+  .hud-btn{font-size:12.5px}
 }
 </style>
 </head>
@@ -408,6 +423,13 @@ new GLTFLoader().load('diamonds.glb?v=4', (gltf)=>{
   buildAnnotations();
   updateStatus();
   autoStart();
+  if (matchMedia('(max-width:640px)').matches && camera.position.lengthSq() > 1e-6){
+    camera.position.sub(controls.target).multiplyScalar(0.80).add(controls.target);   // 窄屏拉近视距
+  }
+  if (matchMedia('(max-width:640px)').matches){    // 小屏默认折叠信息卡,不挡模型
+    $('intro').classList.add('min');
+    $('introToggle').textContent = '▼';
+  }
   window.__parts = parts; window.__colorFor = colorFor; window.__scene = scene;   // CDP 调试
 }, (ev)=>{ if (ev.total) $('bar').style.width = Math.round(ev.loaded/ev.total*100)+'%'; },
 (err)=>{ console.error(err); fail('模型加载失败：'+(err&&err.message||'未知错误')+'<br>请确认 diamonds.glb 与本页面在同一目录。'); });
