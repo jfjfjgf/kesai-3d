@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>KESAI  行走机构 · 三维产品展示</title>
+<style>
+:root{--paper:#faf7f1e6;--paper-solid:#faf7f1;--ink:#2a231b;--muted:#6c6052;--line:#49372329;
+--vermilion:#a33a22;--shadow:0 8px 28px #1e160e2e,0 1px 3px #1e160e1f;
+--serif:"Songti SC","STSong","SimSun",serif;
+--sans:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:#e9ebee;color:var(--ink);font-family:var(--sans);-webkit-user-select:none;user-select:none}
+#gl{position:fixed;inset:0;touch-action:none;cursor:grab;outline:none;width:100%;height:100%;display:block}
+#gl.dragging{cursor:grabbing}#gl.hovering{cursor:pointer}
+.card{background:var(--paper);backdrop-filter:blur(10px);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:14px}
+.intro{left:max(16px,env(safe-area-inset-left));top:max(16px,env(safe-area-inset-top));max-width:330px;padding:14px 16px 13px;position:fixed}
+.intro h1{font-family:var(--serif);letter-spacing:.1em;margin:0;font-size:24px;font-weight:700}
+.intro .sub{color:var(--vermilion);margin:4px 0 9px;font-size:13px;font-weight:600}
+.intro .help{margin:0;padding:0;font-size:13px;line-height:1.7;list-style:none}
+.intro .help b{color:var(--vermilion);margin-right:4px}
+.intro .modes{display:flex;flex-direction:column;gap:8px;margin:10px 0 2px}
+.mode-btn{align-items:center;background:var(--ink);border:0;border-radius:10px;color:#fff;cursor:pointer;display:flex;font-family:inherit;font-size:13.5px;font-weight:600;gap:8px;padding:9px 13px;width:100%}
+.mode-btn.alt{background:0 0;border:1px solid var(--line);color:var(--ink)}
+.mode-btn:hover{filter:brightness(1.12)}
+.mode-btn .dur{color:#ffffffb3;font-weight:400;margin-left:auto;font-size:12px}
+.mode-btn.alt .dur{color:var(--muted)}
+.intro .note{border-top:1px solid var(--line);color:var(--muted);margin:9px 0 0;padding-top:8px;font-size:12px;line-height:1.6}
+.intro-head{justify-content:space-between;align-items:center;gap:10px;display:flex}
+.intro-toggle{width:32px;min-height:32px;color:var(--muted);background:0 0;border-color:#0000;border-radius:8px;flex:none;place-items:center;margin:-4px -6px -4px 0;padding:0;display:grid;cursor:pointer}
+.intro-toggle:hover{color:var(--ink);background:#49372314}
+.intro.min .intro-body{display:none}.intro.min{padding-bottom:14px}
+#topRight{right:max(16px,env(safe-area-inset-right));top:max(16px,env(safe-area-inset-top));align-items:center;display:flex;gap:10px;position:fixed}
+.tool-btn{color:var(--muted);background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:10px;cursor:pointer;font-family:inherit;font-size:12.5px;padding:7px 11px}
+.compass{pointer-events:none;border-radius:50%;place-items:center;width:58px;height:58px;display:grid}
+.compass svg{width:46px;height:46px}
+#hud{align-items:center;bottom:max(16px,env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;gap:8px;left:50%;max-width:calc(100vw - 24px);padding:9px 12px;position:fixed;transform:translateX(-50%)}
+.hud-btn{background:var(--paper-solid);border:1px solid var(--line);border-radius:9px;color:var(--ink);cursor:pointer;font-family:inherit;font-size:13px;padding:7px 12px;white-space:nowrap}
+.hud-btn:hover{border-color:#49372352}
+.hud-btn.on{background:var(--vermilion);border-color:var(--vermilion);color:#fff}
+.hud-btn.primary{background:var(--vermilion);border-color:var(--vermilion);color:#fff}
+#statusLine{bottom:max(64px,calc(env(safe-area-inset-bottom) + 48px));color:#3d362dcc;font-size:12px;left:50%;position:fixed;transform:translateX(-50%);text-align:center;background:#faf7f180;padding:3px 10px;border-radius:8px;pointer-events:none;white-space:nowrap}
+#caption{bottom:max(78px,calc(env(safe-area-inset-bottom) + 62px));display:none;left:50%;max-width:min(640px,92vw);padding:10px 18px;position:fixed;transform:translateX(-50%);text-align:center}
+#caption.on{display:block}
+#caption .chap{color:var(--vermilion);font-size:12px;font-weight:700;letter-spacing:.08em;margin-bottom:3px}
+#caption .txt{font-size:14.5px;line-height:1.6}
+#partCard{display:none;left:max(16px,env(safe-area-inset-left));bottom:max(16px,env(safe-area-inset-bottom));max-width:320px;min-width:210px;padding:12px 16px;position:fixed}
+#partCard.on{display:block}
+#partCard .tag{color:var(--muted);font-size:11px;letter-spacing:.1em}
+#partCard .name{font-size:16px;font-weight:700;margin:2px 26px 4px 0}
+#partCard .meta{color:var(--muted);font-size:12px}
+#partCard .close{position:absolute;right:8px;top:8px;border:0;background:0 0;color:var(--muted);cursor:pointer;font-size:14px;padding:4px 8px}
+#loading{align-items:center;background:#e9ebee;display:grid;inset:0;place-items:center;position:fixed;z-index:30;transition:opacity .5s;color:var(--muted);font-size:14px}
+#loading.gone{opacity:0;pointer-events:none}
+#loading .bar{background:#4937231f;border-radius:2px;height:3px;margin:14px auto 0;overflow:hidden;width:180px}
+#loading .bar i{background:var(--vermilion);display:block;height:100%;transition:width .3s;width:0}
+#err{display:none;inset:0;place-items:center;position:fixed;z-index:40;background:#e9ebee;padding:24px}
+#err.on{display:grid}
+#err .card{font-size:14px;line-height:1.7;max-width:430px;padding:20px 24px}
+body.hide-ui .intro,body.hide-ui #hud,body.hide-ui #topRight,body.hide-ui #statusLine,body.hide-ui #caption,body.hide-ui #partCard{display:none!important}
+#toast{background:var(--ink);color:#fff;border-radius:9px;font-size:12.5px;padding:7px 14px;position:fixed;left:50%;top:18px;transform:translateX(-50%);opacity:0;transition:opacity .3s;pointer-events:none;z-index:50}
+#toast.on{opacity:.92}
+@media (max-width:640px){
+.intro{max-width:210px;padding:10px 12px}.intro h1{font-size:18px}.intro .help{font-size:12px;line-height:1.55}
+.mode-btn{font-size:12.5px;padding:8px 11px}.intro .note{font-size:11px}
+#statusLine{display:none}
+#hud{gap:6px;padding:7px 8px}.hud-btn{font-size:12px;padding:7px 9px;border-radius:8px}
+#caption{bottom:max(112px,calc(env(safe-area-inset-bottom) + 96px));padding:8px 14px}
+#caption .txt{font-size:13.5px}
+#partCard{max-width:calc(100vw - 40px);min-width:180px}
+.compass{width:46px;height:46px}.compass svg{width:36px;height:36px}
+.tool-btn{font-size:11.5px;padding:6px 9px}}
+@media (min-width:641px) and (max-width:1024px){.intro{max-width:280px}.hud-btn{font-size:12.5px}}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="loading"><div><div>正在加载三维模型…</div><div class="bar"><i id="bar"></i></div></div></div>
+<div id="err"><div class="card" id="errMsg"></div></div>
+<div id="toast"></div>
+<div class="intro card" id="intro">
+  <div class="intro-head"><h1>KESAI  行走机构</h1><button class="intro-toggle" id="introToggle" title="收起 / 展开">▲</button></div>
+  <div class="intro-body"><div class="sub">火眼检品配套 · 自动行走机构</div>
+    <ul class="help"><li><b>拖动</b>旋转视角</li><li><b>滚轮 / 双指</b>缩放(对准光标处)</li><li><b>右键拖动</b>平移视角</li><li><b>双击</b>该处移到画面中心</li><li><b>点击部件</b>查看名称</li></ul>
+  <div class="modes">
+    <button class="mode-btn" id="btnDemo"><span class="ico">▶</span>讲解演示<span class="dur" id="demoDur">约 26 秒</span></button>
+    <button class="mode-btn" id="btnWalk" style="display:none"><span class="ico">▶</span>行走演示<span class="dur">往返</span></button>
+  </div>
+  <p class="note">「部件巡览」逐件走近讲解;「拆解产品」展开整机;讲解演示配有录音,字幕与镜头随录音推进。快捷键:空格=环绕,E=拆解,H=隐藏界面,R=复位。</p></div>
+</div>
+<div id="topRight"><button class="tool-btn" id="btnHideUI">隐藏界面</button>
+<div class="compass card" title="方位"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" fill="none" stroke="#49372340" stroke-width="1.5"/><g id="compassRose"><path d="M24 7 L28 26 L24 22 L20 26 Z" fill="#a33a22"/><path d="M24 41 L28 22 L24 26 L20 22 Z" fill="#6c6052"/></g><text x="24" y="6.5" font-size="8" text-anchor="middle" fill="#2a231b">N</text></svg></div></div>
+<div id="caption" class="card"><div class="chap" id="capChap"></div><div class="txt" id="capTxt"></div></div>
+<div id="hud" class="card">
+  <button class="hud-btn primary" id="btnHome">回到初始视角</button>
+  <button class="hud-btn" id="btnExplode">拆解产品</button>
+  <button class="hud-btn" id="btnOrbit">环绕</button>
+  <button class="hud-btn" id="btnShot">高清截图</button>
+</div>
+<div id="statusLine"></div>
+<div id="partCard" class="card"><button class="close" id="pcClose" title="关闭">✕</button><div class="tag">COMPONENT</div><div class="name" id="pcName">—</div><div class="meta" id="pcMeta"></div></div>
+<script type="importmap">{"imports":{"three":"./lib/three.module.js","three/addons/":"./lib/addons/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+const $=(id)=>document.getElementById(id);
+const canvas=$('gl');const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));const DEG=Math.PI/180;
+function fail(h){$('err').classList.add('on');$('errMsg').innerHTML=h;$('loading').classList.add('gone');}
+if(location.protocol==='file:'){fail('<b>请双击「打开展示页.bat」打开本页。</b>');throw new Error('file protocol');}
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.98;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0xe9ebee);scene.fog=new THREE.Fog(0xe9ebee,4.0,16.0);
+const camera=new THREE.PerspectiveCamera(38,1,0.005,60);
+const HOME={pos:new THREE.Vector3(1.15,0.85,1.804),tgt:new THREE.Vector3(0,0.129,0)};
+camera.position.copy(HOME.pos);
+const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;scene.environmentIntensity=0.75;
+const key=new THREE.DirectionalLight(0xffffff,1.7);key.position.set(2.4,3.9,1.8);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);key.shadow.radius=6;key.shadow.bias=-0.0004;
+Object.assign(key.shadow.camera,{left:1.4,right:1.4,top:1.4,bottom:-1.4,near:0.05,far:12.0});scene.add(key);
+const fill=new THREE.DirectionalLight(0xdfe8ff,0.5);fill.position.set(-1,0.6,-0.8);scene.add(fill);
+const ground=new THREE.Mesh(new THREE.CircleGeometry(5.0,64).rotateX(-Math.PI/2),new THREE.ShadowMaterial({opacity:0.28}));
+ground.receiveShadow=true;scene.add(ground);
+const disc=new THREE.Mesh(new THREE.CircleGeometry(1.15,72).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({color:0xd6dade,roughness:0.92}));
+disc.receiveShadow=true;scene.add(disc);
+const controls=new OrbitControls(camera,canvas);
+controls.enableDamping=true;controls.dampingFactor=0.08;controls.minDistance=0.25;controls.maxDistance=8.0;controls.target.copy(HOME.tgt);
+controls.zoomToCursor=true;controls.screenSpacePanning=true;controls.enablePan=true;   // 滚轮缩放对准光标位置, 右键拖动平移
+const SINGLE=false;
+const KEEPMAT=true;
+const NOEXPLODE=true;
+const BRAND_PLATES=[];
+function loadTex(f){const t=new THREE.TextureLoader().load(f);t.colorSpace=THREE.SRGBColorSpace;return t;}
+function addFacePlates(model){
+  for(const b of BRAND_PLATES){
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(b.w,b.h),
+      new THREE.MeshStandardMaterial({map:loadTex(b.tex),roughness:0.45,metalness:0.1,transparent:true,emissive:0xffffff,emissiveMap:loadTex(b.tex),emissiveIntensity:0.32}));
+    m.userData.brandPlate=true;m.position.set(...b.pos);
+    const n=new THREE.Vector3(...b.nrm).normalize(),u=new THREE.Vector3(...b.up).normalize();
+    const r=new THREE.Vector3().crossVectors(u,n).normalize();
+    m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r,u,n));
+    model.add(m);
+  }
+}
+const PART_LABELS=[
+    [/_?M\d+x\d|Screw|screw/i,'紧固螺钉'],[/PCB|PCBA|IO\d/i,'电路板'],[/led|LED/i,'LED 指示'],
+    [/db9|DB9|D-?Sub/i,'DB9 接口'],[/YK\d/i,'电源端子'],[/RJ45|USB/i,'通信接口'],
+    [/玻璃|glass/i,'保护玻璃'],[/镜头|lens|镜筒/i,'镜头'],[/螺杆|螺母|手轮|导座|滑块|支架|底座|转/,'调节/结构件'],
+  ];
+const displayName=n=>{for(const[re,s]of PART_LABELS)if(re.test(n))return s;return n;};
+const root=new THREE.Group();scene.add(root);
+const parts=[];const matCache=[];let modelCenter=new THREE.Vector3(0,0.129,0);let selected=null;
+const PART_COLORS=[
+    [/NVME|SSD/i,0x45484c],[/SFP\+/,0xc0c6cd],[/RJ45|USB|LAN/i,0x3a3d42],[/DP|HDMI/i,0x3a3d42],
+    [/M12(?!X)|FISCHER|D-?Sub|db9|DB9/i,0x55585e],[/ATX|sata|SATA/i,0x45484c],[/^AC/i,0x2e3134],
+    [/Hard_?Drive/i,0xb9bec4],[/PCB|PCBA|IO\d/i,0x2f6e24],[/led|LED/i,0x2f6e24],
+    [/fan|FAN|40\d\d|风扇/i,0x303338],[/YK\d|端子|terminal/i,0x3f4247],
+    [/_?M\d+x\d(?!\.\d)|^M\d+x\d(?!\.\d)/i,0x9aa0a6],[/玻璃|glass|lens|镜头|镜头|镜/i,0x9fd8e8],
+    [/[-￿]*[Ѐ-׿]/,0x8a8f96],
+  ];
+function colorFor(n){for(const[re,c]of PART_COLORS)if(re.test(n))return c;return 0x8a8f96;}
+new GLTFLoader().load('xingzou.glb',(gltf)=>{
+  const model=gltf.scene;model.updateMatrixWorld(true);addFacePlates(model);root.add(model);
+  if(false)root.rotation.x=Math.PI;   // 整机上下翻转(按实物姿态)
+  root.updateMatrixWorld(true);
+  const box=new THREE.Box3().setFromObject(root);const c=box.getCenter(new THREE.Vector3());
+  root.position.x-=c.x;root.position.z-=c.z;root.position.y-=box.min.y;root.updateMatrixWorld(true);
+  modelCenter=new THREE.Vector3(0,c.y-box.min.y,0);
+  let idx=0;
+  model.traverse((obj)=>{if(!obj.isMesh||obj.userData.brandPlate)return;idx++;
+    obj.castShadow=obj.receiveShadow=true;
+    const mat=obj.material=obj.material.clone();
+    if(!KEEPMAT&&mat.side!==undefined)mat.side=THREE.DoubleSide;
+    if(!KEEPMAT&&mat.color){mat.color.setHex(colorFor(obj.name));mat.metalness=0.12;mat.roughness=0.42;}
+    if(KEEPMAT){mat.side=THREE.DoubleSide;}
+    mat.envMapIntensity=KEEPMAT?0.55:0.9;matCache.push(mat);
+    const bb=new THREE.Box3().setFromObject(obj);const pc=bb.getCenter(new THREE.Vector3());
+    const radius=bb.getSize(new THREE.Vector3()).length()/2;
+    const dir=pc.clone().sub(modelCenter);dir.y*=0.55;
+    if(dir.lengthSq()<1e-8)dir.set(0,1,0);dir.normalize();dir.applyEuler(root.rotation);
+    parts.push({mesh:obj,name:obj.name||('Part '+idx),dir,home:obj.position.clone(),center:pc,radius});
+  });
+  $('loading').classList.add('gone');updateStatus();
+  if(SINGLE){$('btnExplode').style.display='none';}
+  if(NOEXPLODE){$('btnExplode').style.display='none';}
+  if(WALK_CFG)setupWalk(WALK_CFG);
+  if(typeof autoStart==='function')autoStart();
+  if(matchMedia('(max-width:640px)').matches){$('intro').classList.add('min');$('introToggle').textContent='▼';}
+  if(matchMedia('(max-width:640px)').matches&&camera.position.lengthSq()>1e-6){camera.position.sub(controls.target).multiplyScalar(0.80).add(controls.target);}
+},(ev)=>{if(ev.total)$('bar').style.width=Math.round(ev.loaded/ev.total*100)+'%';},
+(err)=>{console.error(err);fail('模型加载失败,请确认 xingzou.glb 与本页同目录。');});
+const findParts=(re)=>parts.filter(p=>re.test(p.name));
+let explodeT=0,explodeTarget=0;
+function applyExplode(t){const spread=0.45;for(const p of parts)p.mesh.position.copy(p.home).addScaledVector(p.dir,t*spread);}
+/* ===== 行走演示(拖链+滑车往返) ===== */
+const WALK_CFG={"zF": 0.058, "y0": -0.056, "y1": 0.06, "B0": -0.27, "home": -0.146, "m0": -0.56, "mMin": -0.56, "mMax": -0.07, "period": 32, "addLinks": 14, "demo_chapter": 1, "linkRe": "^圆角3(_instance(_\\d+)?)?$", "box": [0.28, 0.47, -0.1, 0.15, -0.21, -0.045], "viewPos": [1.1, 0.45, 0.35], "viewTgt": [0.0, 0.07, 0.0]};
+let walk=null;
+function setupWalk(cfg){
+  const invRoot=new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const reL=new RegExp(cfg.linkRe);
+  const linkParts=[];
+  for(const p of parts){
+    if(!reL.test(p.name))continue;
+    const m=p.mesh;
+    m.updateMatrixWorld(true);
+    const mrel=new THREE.Matrix4().copy(invRoot).multiply(m.matrixWorld);   // root局部(=模型坐标)
+    m.geometry.computeBoundingBox();
+    const c=m.geometry.boundingBox.getCenter(new THREE.Vector3()).applyMatrix4(mrel);
+    const q=new THREE.Quaternion();
+    mrel.decompose(new THREE.Vector3(),q,new THREE.Vector3());
+    linkParts.push({m,c,a0:new THREE.Euler().setFromQuaternion(q).x});
+  }
+  // 分类: 下层(y≈y0, z降序=从固定端起) / 弯头(y过渡, y升序) / 上层(y≈y1, z升序)
+  const bot=linkParts.filter(o=>Math.abs(o.c.y-cfg.y0)<0.004).sort((a,b)=>b.c.z-a.c.z);
+  const top=linkParts.filter(o=>Math.abs(o.c.y-cfg.y1)<0.004).sort((a,b)=>a.c.z-b.c.z);
+  const bend=linkParts.filter(o=>!bot.includes(o)&&!top.includes(o)).sort((a,b)=>a.c.y-b.c.y);
+  // 复合折线: 固定锚 → 下层链心… → [平滑弯头] → 上层链心… → 移动锚 (全部实测)
+  const pts=[[cfg.zF,cfg.y0]];
+  for(const o of bot)pts.push([o.c.z,o.c.y]);
+  // 弯头控制点: 两端钉在实测直线末端(与上下平段 y0/y1 无缝衔接, 消除跨界跳变), 中间=接合点+实测弯心
+  // 弯头控制点: 两端钉在实测直线末端(与上下平段 y0/y1 无缝衔接, 消除跨界跳变), 中间=实测弯心
+  let ctrl=[];
+  if(bend.length){
+    const zb=bot.length?bot[bot.length-1].c.z:bend[0].c.z;
+    // 出口钉点取次上层链心(落平跨一个节距, 与 CAD 渐变一致, 避免出口切线 48°→0° 突拐)
+    const zt=top.length>1?top[1].c.z:top[0].c.z;
+    ctrl.push([zb,cfg.y0]);
+    for(const o of bend)ctrl.push([o.c.z,o.c.y]);
+    ctrl.push([zt,cfg.y1]);
+  }
+  // 弯头平滑化: Catmull-Rom → 按弧长均匀重采样(链节切线连续, 无褶皱)
+  let dPts=null,dCum=null,Lb=0,startOff=0,endOff=0;
+  if(ctrl.length>1){
+    const P=ctrl.map(p=>({z:p[0],y:p[1]}));
+    const segN=P.length-1;
+    const cr=(i,t)=>{
+      // 虚拟端点: 强制曲线两端水平切线进出平段(C1 连续, 消除边界姿态突跳)
+      const P0=(i===0)?{z:P[0].z+0.03,y:P[0].y}:P[i-1];
+      const P3=(i===segN-1)?{z:P[segN].z+0.04,y:P[segN].y}:P[Math.min(i+2,segN)];
+      const P1=P[i],P2=P[i+1];
+      const t2=t*t,t3=t2*t;
+      return [0.5*(2*P1.z+(-P0.z+P2.z)*t+(2*P0.z-5*P1.z+4*P2.z-P3.z)*t2+(-P0.z+3*P1.z-3*P2.z+P3.z)*t3),
+              0.5*(2*P1.y+(-P0.y+P2.y)*t+(2*P0.y-5*P1.y+4*P2.y-P3.y)*t2+(-P0.y+3*P1.y-3*P2.y+P3.y)*t3)];
+    };
+    const raw=[];
+    for(let i=0;i<segN;i++)for(let k=0;k<24;k++)raw.push(cr(i,k/24));
+    raw.push(P[P.length-1]);
+    dPts=[raw[0]];dCum=[0];
+    for(let i=1;i<raw.length;i++){
+      const d=Math.hypot(raw[i][0]-raw[i-1][0],raw[i][1]-raw[i-1][1]);
+      if(d>1e-6){dPts.push(raw[i]);dCum.push(dCum[dCum.length-1]+d);}
+    }
+    Lb=dCum[dCum.length-1];
+    startOff=dPts[0][0]-cfg.B0;endOff=dPts[dPts.length-1][0]-cfg.B0;
+  }
+  for(const o2 of (dPts||ctrl))pts.push(o2);
+  // 上层链心: 只取出口钉点(z=次上层链)及以后, 否则折线倒退多算 endGap(链尾吊空 40mm)
+  for(const o of top)if(o.c.z>=dPts[dPts.length-1][0]-1e-6)pts.push([o.c.z,o.c.y]);
+  pts.push([cfg.home,cfg.y1]);
+  // 累计弧长(仅用于 Ltot 基准)
+  const cum=[0];
+  for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));
+  let Ltot=cum[cum.length-1];
+  // 链节弧长: 下层=锚距差, 上层=上直线起算, 弯头=平滑曲线最近投影
+  const bl0=cfg.zF-cfg.B0-startOff, sTop0=bl0+Lb;
+  const sOfPt=o=>{
+    if(Math.abs(o.c.y-cfg.y0)<0.004)return cfg.zF-o.c.z;
+    if(Math.abs(o.c.y-cfg.y1)<0.004)return sTop0+(o.c.z-(cfg.B0+endOff));
+    let best=0,bd=1e18;
+    for(let i=0;i<dPts.length;i++){const dd=(dPts[i][0]-o.c.z)**2+(dPts[i][1]-o.c.y)**2;if(dd<bd){bd=dd;best=i;}}
+    return bl0+dCum[best];
+  };
+  function pathAt(s,mv,out){
+    const B=(cfg.zF+mv+Lb-startOff-endOff-Ltot)/2;
+    const bl=cfg.zF-B-startOff;
+    if(s<=bl){out.y=cfg.y0;out.z=cfg.zF-s;return 0;}
+    if(s>=bl+Lb){out.y=cfg.y1;out.z=B+endOff+(s-bl-Lb);return Math.PI;}
+    const u=s-bl;
+    let lo=0,hi=dCum.length-1;
+    while(lo<hi-1){const mid=(lo+hi)>>1;if(dCum[mid]<=u)lo=mid;else hi=mid;}
+    const k=(u-dCum[lo])/Math.max(dCum[lo+1]-dCum[lo],1e-9);
+    out.y=dPts[lo][1]+(dPts[lo+1][1]-dPts[lo][1])*k;
+    out.z=dPts[lo][0]+(dPts[lo+1][0]-dPts[lo][0])*k+(B-cfg.B0);
+    return Math.atan2(dPts[lo+1][1]-dPts[lo][1],-(dPts[lo+1][0]-dPts[lo][0]));
+  }
+  // 烘焙链节: 几何私有化(实例共享!) → root局部坐标 → 中心归零 → 姿态归一(全部转到"下层直线"基准)
+  const links=[];
+  for(const o of linkParts){
+    const m=o.m;
+    root.attach(m);
+    const mrel=new THREE.Matrix4().copy(invRoot).multiply(m.matrixWorld);
+    m.geometry=m.geometry.clone();
+    const g=m.geometry;
+    const s=sOfPt(o);
+    g.applyMatrix4(mrel);g.translate(-o.c.x,-o.c.y,-o.c.z);g.rotateX(-o.a0);
+    m.position.set(o.c.x,o.c.y,o.c.z);m.quaternion.identity();m.scale.set(1,1,1);
+    m.userData.wk={s:s,x:o.c.x};
+    links.push(m);
+  }
+  // 补链节(实例克隆): 让拖链够长以支持全程行走(实物视频: 小车从最左走到最右)
+  if(cfg.addLinks>0){
+    links.sort((a,b)=>a.userData.wk.s-b.userData.wk.s);
+    const ss=links.map(l=>l.userData.wk.s);
+    const pitch=(ss[ss.length-1]-ss[0])/(ss.length-1);
+    const endGap=Ltot-ss[ss.length-1];              // 末链节到移动锚的原始距离
+    const srcBot=links[0];
+    let sLast=ss[ss.length-1];
+    for(let i=0;i<cfg.addLinks;i++){
+      const m2=new THREE.Mesh(srcBot.geometry,srcBot.material);
+      m2.castShadow=m2.receiveShadow=true;
+      sLast+=pitch;
+      m2.userData.wk={s:sLast,x:srcBot.userData.wk.x};
+      root.add(m2);
+      links.push(m2);
+    }
+    Ltot=sLast+endGap;
+  }
+  // 滑车组: 按位置盒选中, 同样私有化几何后整体平移(以模型原始位 home 为基准)
+  // rehome: GLB 父节点重复平移导致零件悬空, 归位到设计坐标; adopt: 孤件强制入滑车并移位(如 U型槽管→罩侧)
+  const REH=cfg.rehome||{};
+  const ADP=cfg.adopt||[];
+  const carriage=[];
+  for(const p of parts){
+    if(reL.test(p.name))continue;
+    const m=p.mesh;
+    m.updateMatrixWorld(true);
+    const mrel=new THREE.Matrix4().copy(invRoot).multiply(m.matrixWorld);
+    m.geometry.computeBoundingBox();
+    const c=m.geometry.boundingBox.getCenter(new THREE.Vector3()).applyMatrix4(mrel);
+    const adp=ADP.find(a=>a.name===p.name);
+    const reh=REH[p.name];
+    if(adp||reh||c.x>cfg.box[0]&&c.x<cfg.box[1]&&c.y>cfg.box[2]&&c.y<cfg.box[3]&&c.z>cfg.box[4]&&c.z<cfg.box[5]){
+      root.attach(m);
+      const mrel2=new THREE.Matrix4().copy(invRoot).multiply(m.matrixWorld);
+      m.geometry=m.geometry.clone();
+      m.geometry.applyMatrix4(mrel2);
+      const d=adp?adp.d:(reh||[0,0,0]);
+      if(d[0]||d[1]||d[2])m.geometry.translate(d[0],d[1],d[2]);
+      m.position.set(0,0,0);m.quaternion.identity();m.scale.set(1,1,1);
+      m.userData.wc={z:0};   // 几何已烘焙模型坐标, position.z 只承担行走位移(勿再加 c.z!)
+      carriage.push(m);
+    }
+  }
+  function update(mv){
+    const v={y:0,z:0};
+    for(const m of links){const wk=m.userData.wk;
+      const phi=pathAt(wk.s,mv,v);
+      m.position.set(wk.x,v.y,v.z);m.rotation.set(-Math.PI/2+phi,0,0);}
+    for(const m of carriage){m.position.z=m.userData.wc.z+(mv-cfg.home);}
+  }
+  update(cfg.m0);
+  const mid=(cfg.mMin+cfg.mMax)/2,amp=(cfg.mMax-cfg.mMin)/2;
+  const ph0=Math.asin(THREE.MathUtils.clamp((cfg.m0-mid)/amp,-1,1));
+  walk={on:false,t0:0,cfg,update,
+    m(now){return mid+amp*Math.sin(2*Math.PI*(now-walk.t0)/1000/cfg.period+ph0);}};
+  window.__walkSet=(mv)=>{walk.manual=true;update(mv);};
+  window.__walkDemo=(on)=>{walk.on=!!on;walk.manual=false;if(on){walk.t0=performance.now();}else{update(cfg.m0);}$('btnWalk').classList.toggle('on',walk.on);$('btnWalk').firstChild.textContent=walk.on?'⏸':'▶';};
+  window.__walkState=()=>({nLinks:links.length,nCarriage:carriage.length,Ltot:+Ltot.toFixed(4),Lbend:+Lb.toFixed(4),nBot:bot.length,nBend:bend.length,nTop:top.length,on:!!walk.on});
+  window.__parts=parts;window.__root=root;   // 调试钩子(审计/验证用)
+  try{window.__cam=camera;window.__ctl=controls;window.__ren=renderer;window.__sce=scene;window.__canvas=canvas;window.__tween=tweenCamera;}catch(e){}
+  $('btnWalk').style.display='';
+  $('btnWalk').addEventListener('click',()=>{
+    walk.on=!walk.on;walk.manual=false;
+    $('btnWalk').classList.toggle('on',walk.on);
+    $('btnWalk').firstChild.textContent=walk.on?'⏸':'▶';
+    if(walk.on){walk.t0=performance.now();
+      tweenCamera(new THREE.Vector3(...cfg.viewPos),new THREE.Vector3(...cfg.viewTgt),1500);
+      toast('行走演示中:拖链带动光电眼往返,可随时旋转缩放');}
+    else{toast('行走演示已停止');update(cfg.m0);}
+  });
+}
+function stepWalk(now){if(!walk||!walk.on||walk.manual)return;walk.update(walk.m(now));}
+let camTween=null;
+function tweenCamera(pos,tgt,dur=1400,onDone){camTween={t0:performance.now(),dur,p0:camera.position.clone(),p1:pos.clone(),g0:controls.target.clone(),g1:tgt.clone(),onDone,user:null};return camTween;}
+function stepTween(now){if(!camTween)return;const k=clamp((now-camTween.t0)/camTween.dur,0,1);const e=k<0.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;camera.position.lerpVectors(camTween.p0,camTween.p1,e);controls.target.lerpVectors(camTween.g0,camTween.g1,e);if(k>=1){const cb=camTween.onDone;camTween=null;cb&&cb();}}
+const ray=new THREE.Raycaster();const ndc=new THREE.Vector2();let downAt=null,resumeTimer=0,orbitOn=false;
+canvas.addEventListener('pointerdown',(e)=>{downAt=[e.clientX,e.clientY];canvas.classList.add('dragging');stopTour(true);clearTimeout(resumeTimer);controls.autoRotate=false;});
+window.addEventListener('pointerup',()=>{canvas.classList.remove('dragging');resumeTimer=setTimeout(()=>{controls.autoRotate=orbitOn;},3000);});
+canvas.addEventListener('pointermove',(e)=>{if(!parts.length||SINGLE)return;ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);ray.setFromCamera(ndc,camera);canvas.classList.toggle('hovering',!!ray.intersectObjects(parts.map(p=>p.mesh),false)[0]&&!e.buttons);});
+canvas.addEventListener('click',(e)=>{if(SINGLE)return;if(!downAt)return;const moved=Math.hypot(e.clientX-downAt[0],e.clientY-downAt[1]);downAt=null;if(moved>5)return;ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);ray.setFromCamera(ndc,camera);const hit=ray.intersectObjects(parts.map(p=>p.mesh),false)[0];select(hit?parts.find(p=>p.mesh===hit.object):null);});
+canvas.addEventListener('dblclick',(e)=>{if(SINGLE)return;ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);ray.setFromCamera(ndc,camera);const hit=ray.intersectObjects(parts.map(p=>p.mesh),false)[0];if(hit)tweenCamera(camera.position.clone(),hit.point,600);});
+function select(p){if(selected)selected.mesh.material.emissive.setHex(0);selected=p;const card=$('partCard');
+if(!p){card.classList.remove('on');return;}p.mesh.material.emissive.setHex(0x0d4d8c);p.mesh.material.emissiveIntensity=0.6;
+$('pcName').textContent=displayName(p.name);$('pcMeta').textContent='部件 '+(parts.indexOf(p)+1)+' / '+parts.length;card.classList.add('on');}
+$('pcClose').addEventListener('click',()=>select(null));
+function setHighlight(list,on){for(const p of list){if(p===selected&&on)continue;p.mesh.material.emissive.setHex(on?0x0d4d8c:0);p.mesh.material.emissiveIntensity=0.45;}}
+function clearAllHL(){for(const m of matCache){m.emissive.setHex(0);}if(selected){selected.mesh.material.emissive.setHex(0x0d4d8c);selected.mesh.material.emissiveIntensity=0.6;}}
+const CHAPTERS=[{"t": 0.0, "title": "第 1 节", "text": "自动行走机构,火眼检品系统的配套部件,整机尺寸约 193×258×1000 毫米。", "cam": {"pos": [1.15, 0.85, 1.804], "tgt": [0, 0.129, 0]}, "hl": null, "expl": 0}, {"t": 9.3, "title": "第 2 节", "text": "行走机构沿导轨带动检测单元自动行走,实现检品位置在印刷方向上的自动移动。", "cam": {"pos": [1.1, 0.45, 0.35], "tgt": [0.0, 0.07, 0.0]}, "hl": null, "expl": 0, "walk": true}, {"t": 17.9, "title": "第 3 节", "text": "本页支持旋转、缩放,可点击部件查看名称;「行走演示」播放拖链带动光电眼往返行走。", "cam": {"pos": [1.15, 0.85, 1.804], "tgt": [0, 0.129, 0]}, "hl": null, "expl": 0}];
+const DEMO_FALLBACK_TOTAL=29;
+const NARRATION={audio:null,url:'audio/narration.mp3',loading:null,has:false};
+function probeAudio(){NARRATION.has=true;NARRATION.loading=Promise.resolve();return NARRATION.loading;}
+probeAudio();
+let demo=null;
+function demoTime(){if(demo&&demo.audio)return demo.audio.currentTime;return demo?(performance.now()-demo.start)/1000:0;}
+function startDemo(){stopTour(true);stopDemo(true);explodeTarget=0;
+const begin=()=>{demo={start:performance.now(),audio:null,chapIdx:-1};$('btnDemo').classList.add('on');$('btnDemo').firstChild.textContent='⏸';
+if(NARRATION.has){const a=new Audio();a.src=NARRATION.url;a.preload='auto';demo.audio=a;a.addEventListener('ended',stopDemo);a.play().catch(()=>{demo.audio=null;});}stepDemo();};
+if(explodeT>0.01){explodeTarget=0;}
+tweenCamera(new THREE.Vector3(...CHAPTERS[0].cam.pos),new THREE.Vector3(...CHAPTERS[0].cam.tgt),1200,begin);}
+function stepDemo(){if(!demo)return;const t=demoTime();let idx=-1;for(let i=0;i<CHAPTERS.length;i++)if(t>=CHAPTERS[i].t)idx=i;
+if(idx!==demo.chapIdx){demo.chapIdx=idx;if(idx>=0){const ch=CHAPTERS[idx];
+if(!camTween||camTween.user!=='user'){const tw=tweenCamera(new THREE.Vector3(...ch.cam.pos),new THREE.Vector3(...ch.cam.tgt),1600);tw.user='demo';}
+showCaption(ch.title,ch.text);clearAllHL();explodeTarget=ch.expl||0;
+if(ch.hl)setHighlight(ch.hl.flatMap(re=>findParts(re)),true);
+if(window.__walkDemo)window.__walkDemo(!!ch.walk);}}
+if(demo&&!demo.audio&&t>DEMO_FALLBACK_TOTAL)stopDemo();}
+function stopDemo(silent){if(!demo)return;if(demo.audio){demo.audio.pause();}demo=null;if(window.__walkDemo)window.__walkDemo(false);$('btnDemo').classList.remove('on');$('btnDemo').firstChild.textContent='▶';hideCaption();clearAllHL();if(!silent)toast('讲解演示已结束');}
+window.__demoJump=(t)=>{if(demo){demo.audio=null;demo.start=performance.now()-t*1000;}};
+window.__demoStep=()=>{stepDemo();stepTween(performance.now());};
+$('btnDemo').addEventListener('click',()=>{demo?stopDemo(true):startDemo();});
+const TOUR_SEQ=[{re:new RegExp("GR42_03IE_5C_0_35Nm_磁编闭环一体机_2_","i"),text:'整机组成部件之一。'},{re:new RegExp("同步带","i"),text:'整机组成部件之一。'},{re:new RegExp("电机罩T1_2_修改散热孔_2b44b1","i"),text:'整机组成部件之一。'},{re:new RegExp("GR42_03IE_5C_0_35Nm_磁编闭环一体机_1_","i"),text:'整机组成部件之一。'},{re:new RegExp("主安装件","i"),text:'整机组成部件之一。'},{re:new RegExp("收发光纤头座D","i"),text:'整机组成部件之一。'},{re:new RegExp("反光板安装件L","i"),text:'整机组成部件之一。'},{re:new RegExp("反光板安装件R","i"),text:'整机组成部件之一。'},{re:new RegExp("L安装件_1","i"),text:'整机组成部件之一。'},{re:new RegExp("圆角5","i"),text:'整机组成部件之一。'}];
+let tour=null;
+function startTour(){stopDemo(true);select(null);setExplode(true);tour={idx:-1,phase:'move',until:0};tourNext();}
+function tourNext(){if(!tour)return;tour.idx++;if(tour.idx>=TOUR_SEQ.length){stopTour();toast('部件巡览结束');return;}
+const item=TOUR_SEQ[tour.idx];const list=findParts(item.re);if(!list.length){tourNext();return;}
+const p=list[0];const c=p.center.clone();
+const horiz=new THREE.Vector3(c.x-modelCenter.x,0,c.z-modelCenter.z);if(horiz.lengthSq()<1e-6)horiz.set(0.5,0,0.5);horiz.normalize();
+const dist=Math.max(0.35,p.radius*2.4);
+const pos=c.clone().addScaledVector(horiz,dist).add(new THREE.Vector3(0,0.10+p.radius*0.5,0));
+showCaption('部件 '+(parts.indexOf(p)+1)+'/'+parts.length+' · 巡览',displayName(p.name)+' —— '+item.text);
+clearAllHL();setHighlight([p],true);
+tweenCamera(pos,c,1500,()=>{tour.phase='stay';tour.until=performance.now()+3600;});}
+function stepTour(now){if(!tour)return;if(tour.phase==='stay'&&now>=tour.until)tourNext();}
+function stopTour(silent){if(!tour)return;tour=null;hideCaption();clearAllHL();if(!silent)toast('部件巡览已停止');}
+function showCaption(c,t){$('capChap').textContent=c;$('capTxt').textContent=t;$('caption').classList.add('on');}
+function hideCaption(){$('caption').classList.remove('on');}
+let toastTimer=0;
+function toast(s){const t=$('toast');t.textContent=s;t.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('on'),2200);}
+function setExplode(on){explodeTarget=on?1:0;$('btnExplode').classList.toggle('on',on);$('btnExplode').textContent=on?'收回部件':'拆解产品';if(on){select(null);stopTour(true);stopDemo(true);}}
+$('btnExplode').addEventListener('click',()=>setExplode(explodeTarget<0.5));
+let uiHidden=false;
+function setHideUI(on){uiHidden=on;document.body.classList.toggle('hide-ui',on);$('btnHideUI').textContent=on?'显示界面':'隐藏界面';}
+$('btnHideUI').addEventListener('click',()=>setHideUI(!uiHidden));
+$('introToggle').addEventListener('click',()=>{const m=$('intro').classList.toggle('min');$('introToggle').textContent=m?'▼':'▲';});
+addEventListener('keydown',(e)=>{switch(e.code){case 'Space':e.preventDefault();$('btnOrbit').click();break;
+case 'KeyH':setHideUI(!uiHidden);break;case 'KeyE':if(!SINGLE&&!NOEXPLODE)setExplode(explodeTarget<0.5);break;
+case 'Escape':stopTour(true);stopDemo(true);select(null);break;}});
+function goHome(){stopTour(true);stopDemo(true);setExplode(false);select(null);tweenCamera(HOME.pos,HOME.tgt,1200);}
+$('btnHome').addEventListener('click',goHome);
+$('btnOrbit').addEventListener('click',(e)=>{orbitOn=!orbitOn;controls.autoRotate=orbitOn;e.currentTarget.classList.toggle('on',orbitOn);});
+$('btnShot').addEventListener('click',()=>{renderer.render(scene,camera);canvas.toBlob((blob)=>{if(!blob)return;const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='xingzou.png';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast('已导出当前画面 PNG');},'image/png');});
+function updateStatus(){const d=camera.position.distanceTo(controls.target);
+const elev=Math.atan2(camera.position.y-controls.target.y,Math.hypot(camera.position.x-controls.target.x,camera.position.z-controls.target.z))/DEG;
+$('statusLine').textContent='环绕产品中心 · 俯仰 '+elev.toFixed(0)+'° · 距离 '+d.toFixed(2)+' m';
+$('compassRose').setAttribute('transform','rotate('+(-controls.getAzimuthalAngle()/DEG)+' 24 24)');}
+setInterval(updateStatus,150);
+function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+window.__dbg={camera,controls,renderer,scene,root,parts};   // CDP 调试钩子
+renderer.setAnimationLoop(()=>{const now=performance.now();stepTween(now);stepWalk(now);
+if(Math.abs(explodeT-explodeTarget)>0.0005){explodeT+=(explodeTarget-explodeT)*0.09;if(Math.abs(explodeT-explodeTarget)<0.0005)explodeT=explodeTarget;applyExplode(explodeT);}
+stepDemo();stepTour(now);controls.update();renderer.render(scene,camera);});
+</script>
+</body>
+</html>
