@@ -167,6 +167,8 @@ const PART_COLORS=[
   ];
 const HIDEPARTS=["^KESAI$"];
 const DROPBOX=[-0.0973, 0.1227, 0.1529, 0.2629, 0.475, 0.565];
+const STATICDECALS=[];
+const AUTO_REG=false;
 function colorFor(n){for(const[re,c]of PART_COLORS)if(re.test(n))return c;return 0x8a8f96;}
 new GLTFLoader().load('huoxiangji.glb',(gltf)=>{
   const model=gltf.scene;model.updateMatrixWorld(true);addFacePlates(model);root.add(model);
@@ -211,6 +213,16 @@ new GLTFLoader().load('huoxiangji.glb',(gltf)=>{
     }catch(e){console.warn('mat_fix',e);}
   }
   for(const reStr of(["^KESAI$"]||[])){try{const r=new RegExp(reStr);for(const p of parts)if(r.test(p.name))p.mesh.visible=false;}catch(e){}}
+  for(const d of([]||[])){   // 静态贴片(不随行走移动, 如料膜)
+    try{
+      const tex=new THREE.TextureLoader().load(d.png);
+      tex.colorSpace=THREE.SRGBColorSpace;
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(d.w,d.h),
+        new THREE.MeshStandardMaterial({map:tex,transparent:true,roughness:0.6,metalness:0.02,
+          polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4,side:THREE.DoubleSide}));
+      root.add(m);m.position.set(d.pos[0],d.pos[1],d.pos[2]);m.rotation.y=d.rotY||0;
+    }catch(e){console.warn('static_decal',e);}
+  }
   $('loading').classList.add('gone');updateStatus();
   if(SINGLE){$('btnExplode').style.display='none';}
   if(NOEXPLODE){$('btnExplode').style.display='none';}
@@ -414,7 +426,9 @@ function setupWalk(cfg){
       carriage.push(m);
     }
   }
+  let curMv=cfg.m0;
   function update(mv){
+    curMv=mv;
     const v={y:0,z:0};
     for(const m of links){const wk=m.userData.wk;
       const phi=pathAt(wk.s,mv,v);
@@ -428,24 +442,45 @@ function setupWalk(cfg){
   // 相位累加器: 暂停=停在当前位置不回原位, 续播=从当前位置继续(走哪停哪, 停哪从哪开始); period 固定 11s
   walk={on:false,manual:false,ph:ph0,last:0,period:(cfg.period||32),cfg,update,
     step(now){if(!walk.last)walk.last=now;const dt=now-walk.last;walk.last=now;
+      if(walk.twn){const k=Math.min(1,(now-walk.twn.t0)/walk.twn.dur);
+        const e=k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+        curMv=walk.twn.from+(walk.twn.to-walk.twn.from)*e;walk.update(curMv);walk.syncPhase(curMv);
+        if(k>=1)walk.twn=null;return;}
       if(walk.on&&!walk.manual){walk.ph+=dt*2*Math.PI/1000/walk.period;walk.update(mid+amp*Math.sin(walk.ph));}},
     syncPhase(mv){const sn=THREE.MathUtils.clamp((mv-mid)/amp,-1,1);
       const cands=[Math.asin(sn),Math.PI-Math.asin(sn)];
       let best=cands[0],bd=1e9;for(const c0 of cands)for(const k of[-2,0,2]){const cc=c0+k*2*Math.PI;const d=Math.abs(cc-walk.ph);if(d<bd){bd=d;best=cc;}}walk.ph=best;}};
   window.__walkSet=(mv)=>{walk.manual=true;update(mv);walk.syncPhase(mv);};
-  window.__walkDemo=(on)=>{walk.on=!!on;walk.manual=false;$('btnWalk').classList.toggle('on',walk.on);$('btnWalk').firstChild.textContent=walk.on?'⏸':'▶';};
+  window.__walkDemo=(on)=>{if(walk)walk.twn=null;walk.on=!!on;walk.manual=false;$('btnWalk').classList.toggle('on',walk.on);$('btnWalk').firstChild.textContent=walk.on?'⏸':'▶';};
   window.__walkState=()=>({nLinks:links.length,nCarriage:carriage.length,Ltot:+Ltot.toFixed(4),Lbend:+Lb.toFixed(4),nBot:bot.length,nBend:bend.length,nTop:top.length,on:!!walk.on,ph:+walk.ph.toFixed(3),period:+walk.period.toFixed(1)});
   window.__parts=parts;window.__root=root;   // 调试钩子(审计/验证用)
   try{window.__cam=camera;window.__ctl=controls;window.__ren=renderer;window.__sce=scene;window.__canvas=canvas;window.__tween=tweenCamera;}catch(e){}
   $('btnWalk').style.display='';
   $('btnWalk').addEventListener('click',()=>{
+    if(walk)walk.twn=null;   // 行走演示打断套印行走
     walk.on=!walk.on;walk.manual=false;
     $('btnWalk').classList.toggle('on',walk.on);
     $('btnWalk').firstChild.textContent=walk.on?'⏸':'▶';
     if(walk.on){toast('行走演示中:拖链带动滑车往返,可随时旋转缩放');}
     else{toast('行走演示已暂停,再按一次从当前位置继续');}
   });
+  if(AUTO_REG){   // 全自动套印: 按下行走至左色标位; 若已在左色标位则行走至右色标位
+    const bReg=document.createElement('button');
+    bReg.id='btnReg';
+    bReg.className='mode-btn';
+    bReg.innerHTML='<span class="ico">◆</span>全自动套印<span class="dur">色标</span>';
+    bReg.addEventListener('click',()=>{
+      if(walk.twn)return;
+      if(walk.on){walk.on=false;walk.manual=false;$('btnWalk').classList.remove('on');$('btnWalk').firstChild.textContent='▶';}
+      walk.manual=true;
+      const target=(curMv<(cfg.mMin+cfg.mMax)/2)?cfg.mMax:cfg.mMin;
+      walk.twn={t0:performance.now(),dur:Math.max(900,Math.abs(target-curMv)/Math.abs(cfg.mMax-cfg.mMin)*5200),from:curMv,to:target};
+      toast(target===cfg.mMin?'全自动套印: 行走至左侧色标':'全自动套印: 行走至右侧色标');
+    });
+    $('btnWalk').parentNode.insertBefore(bReg,$('btnWalk').nextSibling);
+  }
 }
+function mvTweenClear(){if(walk)walk.twn=null;}
 function stepWalk(now){if(walk)walk.step(now);}
 let camTween=null;
 function tweenCamera(pos,tgt,dur=1400,onDone){camTween={t0:performance.now(),dur,p0:camera.position.clone(),p1:pos.clone(),g0:controls.target.clone(),g1:tgt.clone(),onDone,user:null};return camTween;}
