@@ -425,16 +425,16 @@ function setupWalk(cfg){
   update(cfg.m0);
   const mid=(cfg.mMin+cfg.mMax)/2,amp=(cfg.mMax-cfg.mMin)/2;
   const ph0=Math.asin(THREE.MathUtils.clamp((cfg.m0-mid)/amp,-1,1));
-  // 相位累加器: 暂停=停在当前位置不回原位, 续播=从当前位置继续(走哪停哪, 停哪从哪开始); period 可由速度滑杆实时调节
+  // 相位累加器: 暂停=停在当前位置不回原位, 续播=从当前位置继续(走哪停哪, 停哪从哪开始); period 固定 11s
   walk={on:false,manual:false,ph:ph0,last:0,period:(cfg.period||32),cfg,update,
     step(now){if(!walk.last)walk.last=now;const dt=now-walk.last;walk.last=now;
-      if(walk.on&&!walk.manual){walk.ph+=dt*2*Math.PI/1000/walk.period;walk.update(mid+amp*Math.sin(walk.ph+ph0));}},
+      if(walk.on&&!walk.manual){walk.ph+=dt*2*Math.PI/1000/walk.period;walk.update(mid+amp*Math.sin(walk.ph));}},
     syncPhase(mv){const sn=THREE.MathUtils.clamp((mv-mid)/amp,-1,1);
-      const cands=[Math.asin(sn)-ph0,Math.PI-Math.asin(sn)-ph0];
+      const cands=[Math.asin(sn),Math.PI-Math.asin(sn)];
       let best=cands[0],bd=1e9;for(const c0 of cands)for(const k of[-2,0,2]){const cc=c0+k*2*Math.PI;const d=Math.abs(cc-walk.ph);if(d<bd){bd=d;best=cc;}}walk.ph=best;}};
   window.__walkSet=(mv)=>{walk.manual=true;update(mv);walk.syncPhase(mv);};
   window.__walkDemo=(on)=>{walk.on=!!on;walk.manual=false;$('btnWalk').classList.toggle('on',walk.on);$('btnWalk').firstChild.textContent=walk.on?'⏸':'▶';};
-  window.__walkState=()=>({nLinks:links.length,nCarriage:carriage.length,Ltot:+Ltot.toFixed(4),Lbend:+Lb.toFixed(4),nBot:bot.length,nBend:bend.length,nTop:top.length,on:!!walk.on});
+  window.__walkState=()=>({nLinks:links.length,nCarriage:carriage.length,Ltot:+Ltot.toFixed(4),Lbend:+Lb.toFixed(4),nBot:bot.length,nBend:bend.length,nTop:top.length,on:!!walk.on,ph:+walk.ph.toFixed(3),period:+walk.period.toFixed(1)});
   window.__parts=parts;window.__root=root;   // 调试钩子(审计/验证用)
   try{window.__cam=camera;window.__ctl=controls;window.__ren=renderer;window.__sce=scene;window.__canvas=canvas;window.__tween=tweenCamera;}catch(e){}
   $('btnWalk').style.display='';
