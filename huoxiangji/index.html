@@ -165,6 +165,8 @@ const PART_COLORS=[
     [/_?M\d+x\d(?!\.\d)|^M\d+x\d(?!\.\d)/i,0x9aa0a6],[/玻璃|glass|lens|镜头|镜头|镜/i,0x9fd8e8],
     [/[-￿]*[Ѐ-׿]/,0x8a8f96],
   ];
+const HIDEPARTS=["^KESAI$"];
+const DROPBOX=[-0.0973, 0.1227, 0.1529, 0.2629, 0.475, 0.565];
 function colorFor(n){for(const[re,c]of PART_COLORS)if(re.test(n))return c;return 0x8a8f96;}
 new GLTFLoader().load('huoxiangji.glb',(gltf)=>{
   const model=gltf.scene;model.updateMatrixWorld(true);addFacePlates(model);root.add(model);
@@ -174,7 +176,10 @@ new GLTFLoader().load('huoxiangji.glb',(gltf)=>{
   root.position.x-=c.x;root.position.z-=c.z;root.position.y-=box.min.y;root.updateMatrixWorld(true);
   modelCenter=new THREE.Vector3(0,c.y-box.min.y,0);
   let idx=0;
-  model.traverse((obj)=>{if(!obj.isMesh||obj.userData.brandPlate)return;idx++;
+  model.traverse((obj)=>{if(!obj.isMesh||obj.userData.brandPlate)return;
+    if(DROPBOX.length===6){obj.updateWorldMatrix(true,false);const bb2=new THREE.Box3().setFromObject(obj);const cc2=bb2.getCenter(new THREE.Vector3());
+      if(cc2.x>=DROPBOX[0]&&cc2.x<=DROPBOX[1]&&cc2.y>=DROPBOX[2]&&cc2.y<=DROPBOX[3]&&cc2.z>=DROPBOX[4]&&cc2.z<=DROPBOX[5]){obj.visible=false;return;}}
+    idx++;
     obj.castShadow=obj.receiveShadow=(false?obj.name==='Body':true);
     const mat=obj.material=obj.material.clone();
     if(!KEEPMAT&&mat.side!==undefined)mat.side=THREE.DoubleSide;
@@ -187,6 +192,25 @@ new GLTFLoader().load('huoxiangji.glb',(gltf)=>{
     if(dir.lengthSq()<1e-8)dir.set(0,1,0);dir.normalize();dir.applyEuler(root.rotation);
     parts.push({mesh:obj,name:obj.name||('Part '+idx),dir,home:obj.position.clone(),center:pc,radius});
   });
+  for(const f of([]||[])){   // 材质修复: GLB 重建丢失材质的 _instance 孿生件/错色件 → 克隆来源件材质
+    try{
+      const re=new RegExp(f.dst,'i');
+      for(const p of parts){
+        if(!re.test(p.name))continue;
+        let src=null;
+        if(f.src==='base')src=parts.find(q=>q.name===p.name.replace(/_instance.*$/,''));
+        else src=parts.find(q=>q.name===f.src);
+        if(src&&src.mesh.material&&p.mesh.material!==src.mesh.material){
+          p.mesh.material=src.mesh.material.clone();
+          p.mesh.material.side=src.mesh.material.side;
+          p.mesh.material.envMapIntensity=src.mesh.material.envMapIntensity;
+          if(p.mesh.material.isMeshBasicMaterial)p.mesh.material.toneMapped=false;
+          matCache.push(p.mesh.material);
+        }
+      }
+    }catch(e){console.warn('mat_fix',e);}
+  }
+  for(const reStr of(["^KESAI$"]||[])){try{const r=new RegExp(reStr);for(const p of parts)if(r.test(p.name))p.mesh.visible=false;}catch(e){}}
   $('loading').classList.add('gone');updateStatus();
   if(SINGLE){$('btnExplode').style.display='none';}
   if(NOEXPLODE){$('btnExplode').style.display='none';}
@@ -201,7 +225,7 @@ const findParts=(re)=>parts.filter(p=>re.test(p.name));
 let explodeT=0,explodeTarget=0;
 function applyExplode(t){const spread=0.657;for(const p of parts)p.mesh.position.copy(p.home).addScaledVector(p.dir,t*spread);}
 /* ===== 行走演示(拖链+滑车往返) ===== */
-const WALK_CFG={"zdir": -1, "zF": -0.6211, "y0": 0.0863, "y1": 0.1558, "B0": 0.239, "home": 0.0798, "link_raw": true, "cls_tol": 0.003, "m0": 0.0798, "mMin": -0.268, "mMax": 0.0798, "period": 32, "addLinks": 0, "demo_chapter": 1, "speed_min": 11, "speed_max": 128, "linkRe": "^输入1", "box": [-0.11, 0.11, 0.135, 0.26, 0.03, 0.6], "viewPos": [0.9, 0.5, 0.95], "viewTgt": [0.0, 0.128, 0.0]};
+const WALK_CFG={"zdir": -1, "zF": -0.6211, "y0": 0.0863, "y1": 0.1558, "B0": 0.239, "home": 0.0798, "link_raw": true, "cls_tol": 0.003, "m0": 0.0798, "mMin": -0.268, "mMax": 0.0798, "period": 32, "addLinks": 0, "demo_chapter": 1, "decals": [{"w": 0.016, "h": 0.00817, "rotY": 0, "pos": [0.0465, 0.2095, 0.1576], "png": "data:image/png;base64,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"}], "speed_min": 11, "speed_max": 128, "linkRe": "^输入1", "box": [-0.11, 0.11, 0.135, 0.26, 0.03, 0.6], "viewPos": [0.9, 0.5, 0.95], "viewTgt": [0.0, 0.128, 0.0]};
 let walk=null;
 function setupWalk(cfg){
   root.updateMatrixWorld(true);   // 确保 root.matrixWorld 新鲜, invRoot 换算可靠
